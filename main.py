@@ -117,6 +117,33 @@ def validate_cost_structure(sales_marketing, customer_success, admin, operations
     total = sales_marketing + customer_success + admin + operations + engineering
     return abs(total - 100) < 0.01  # Allow for small floating-point errors
 
+def calculate_additional_costs(years, employee_counts, customer_counts):
+    costs = []
+    for year, employees, customers in zip(range(1, years + 1), employee_counts, customer_counts):
+        accounting_cost = 12000 * (1 + 0.1 * (year - 1))  # Base 12000/year, 10% increase each year
+        legal_cost = 10000 * (1 + 0.05 * (year - 1))  # Base 10000/year, 5% increase each year
+        rent_cost = 200 * 12 * employees  # £200/person/month
+        office_materials = 500 * employees  # £500/person/year
+        software_licenses = 1000 * employees  # £1000/person/year for various software
+        marketing_cost = 5000 * (1 + 0.2 * (year - 1)) + 50 * customers  # Base 5000/year, 20% increase each year, plus £50 per customer
+        misc_cost = 10000 * (1 + 0.05 * (year - 1))  # Base 10000/year, 5% increase each year
+
+        total_cost = accounting_cost + legal_cost + rent_cost + office_materials + software_licenses + marketing_cost + misc_cost
+        
+        costs.append({
+            'Year': year,
+            'Accounting': accounting_cost,
+            'Legal Advisory': legal_cost,
+            'Rent (Co-working)': rent_cost,
+            'Office Materials': office_materials,
+            'Software Licenses': software_licenses,
+            'Marketing': marketing_cost,
+            'Miscellaneous': misc_cost,
+            'Total Additional Costs': total_cost
+        })
+    
+    return pd.DataFrame(costs)
+
 # Main Streamlit app code
 st.title('UK SaaS Financial Projection for Schools')
 
@@ -216,6 +243,14 @@ st.dataframe(hr_costs_per_year.style.format({
     'Total HR Costs': '£{:,.0f}'
 }))
 
+# Calculate additional operational costs
+employee_counts = edited_hr_df.groupby('Start Year')['Necessary Resources'].sum().tolist()
+customer_counts = [customer_base[i] for i in range(11, months, 12)]
+additional_costs_df = calculate_additional_costs(5, employee_counts, customer_counts)
+
+st.subheader('Additional Operational Costs')
+st.dataframe(additional_costs_df.style.format({col: '£{:,.0f}' for col in additional_costs_df.columns if col != 'Year'}))
+
 
 # Prepare DataFrame for display
 df = pd.DataFrame({
@@ -226,9 +261,13 @@ df = pd.DataFrame({
     'HR Costs': hr_costs_per_year['Total HR Costs'],
 })
 
+
+
 # Calculate EBITDA, Tax, and Net Profit
 df['HR Costs'] = hr_costs_per_year['Total HR Costs']
-df['EBITDA'] = df['Revenue'] - df['Total Costs'] - df['HR Costs']
+df['Additional Costs'] = additional_costs_df['Total Additional Costs']
+df['Total Costs'] = df['Total Costs'] + df['HR Costs'] + df['Additional Costs']
+df['EBITDA'] = df['Revenue'] - df['Total Costs']
 df['Tax'] = df['EBITDA'].apply(lambda x: calculate_uk_corporation_tax(x, 2023))
 df['Net Profit'] = df['EBITDA'] - df['Tax']
 
@@ -238,6 +277,7 @@ st.dataframe(df.style.format({
     'Revenue': '£{:,.0f}',
     'Total Costs': '£{:,.0f}',
     'HR Costs': '£{:,.0f}',
+    'Additional Costs': '£{:,.0f}',
     'EBITDA': '£{:,.0f}',
     'Tax': '£{:,.0f}',
     'Net Profit': '£{:,.0f}'
@@ -255,7 +295,7 @@ col2.metric('Internal Rate of Return (IRR)', f'{irr:.2%}')
 
 # Monte Carlo simulation
 st.subheader('Monte Carlo Simulation')
-npv_results, irr_results = run_monte_carlo(initial_investment, np.array(annual_revenues), np.array(total_costs) + np.array(hr_costs_per_year['Total HR Costs']))
+npv_results, irr_results = run_monte_carlo(initial_investment, np.array(annual_revenues), np.array(df['Total Costs']))
 
 col1, col2 = st.columns(2)
 col1.metric('NPV (Mean)', f'£{np.mean(npv_results):,.0f}')
