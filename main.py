@@ -59,15 +59,15 @@ def run_monte_carlo(initial_investment, revenues, costs, iterations=1000):
 def calculate_hr_resources(customer_base, years):
     roles = [
         {"title": "CEO", "base_salary": 65000, "start_year": 1, "end_year": 5, "seniority": "Executive"},
-        {"title": "CTO", "base_salary": 65000, "start_year": 3, "end_year": 5, "seniority": "Executive"},
+        {"title": "COO", "base_salary": 65000, "start_year": 3, "end_year": 5, "seniority": "Executive"},
         {"title": "CFO", "base_salary": 60000, "start_year": 2, "end_year": 5, "seniority": "Executive"},
         {"title": "Sales Manager", "base_salary": 46000, "start_year": 1, "end_year": 5, "seniority": "Senior"},
         {"title": "Marketing Manager", "base_salary": 46000, "start_year": 2, "end_year": 5, "seniority": "Senior"},
-        {"title": "Customer Success Manager", "base_salary": 46000, "start_year": 2, "end_year": 5, "seniority": "Senior"},
+        {"title": "Marketing Analyst", "base_salary": 35000, "start_year": 2, "end_year": 5, "seniority": "Senior"},
         {"title": "Software Engineer", "base_salary": 46000, "start_year": 1, "end_year": 5, "seniority": "Mid-level"},
         {"title": "UI/UX Designer", "base_salary": 38000, "start_year": 2, "end_year": 5, "seniority": "Mid-level"},
         {"title": "Sales Representative", "base_salary": 40000, "start_year": 1, "end_year": 5, "seniority": "Junior"},
-        {"title": "Customer Support Specialist", "base_salary": 35000, "start_year": 1, "end_year": 5, "seniority": "Junior"},
+        {"title": "Customer Support Specialist", "base_salary": 26000, "start_year": 1, "end_year": 5, "seniority": "Junior"},
     ]
     
     hr_resources = []
@@ -76,7 +76,7 @@ def calculate_hr_resources(customer_base, years):
         role_counts = {}
         for role in roles:
             if role["start_year"] <= year <= role["end_year"]:
-                if role["title"] in ["CEO", "CTO", "CFO"]:
+                if role["title"] in ["CEO", "COO", "CFO"]:
                     count = 1
                 elif role["title"] == "Customer Support Specialist":
                     count = max(1, int(customer_count / ONE_CS_PER_CUSTOMERS))  # 1 specialist per 50 customers
@@ -208,7 +208,7 @@ total_costs = [sum(costs) for costs in zip(sales_marketing_costs, customer_succe
 
 # HR Resources Table
 st.subheader('HR Resources Projection')
-hr_df = calculate_hr_resources([customer_base[i] for i in range(11, months, 12)], 5)
+hr_df = calculate_hr_resources([int(customer_base[i]) for i in range(11, months, 12)], 5)
 
 # Make the salary column editable
 edited_hr_df = st.data_editor(
@@ -221,6 +221,21 @@ edited_hr_df = st.data_editor(
             max_value=1000000,
             step=1000,
             format="£%d"
+        ),
+        'Labor Charges': st.column_config.NumberColumn(
+            "Labor Charges",
+            help="Automatically calculated as 15% of the salary",
+            format="£%d"
+        ),
+        'Benefits': st.column_config.NumberColumn(
+            "Benefits",
+            help="Automatically calculated as 20% of the salary",
+            format="£%d"
+        ),
+        'Total': st.column_config.NumberColumn(
+            "Total",
+            help="Automatically calculated as the sum of Salary, Labor Charges, and Benefits",
+            format="£%d"
         )
     },
     hide_index=True,
@@ -228,17 +243,17 @@ edited_hr_df = st.data_editor(
 )
 
 # Recalculate labor charges, benefits, and total based on edited salaries
-edited_hr_df['Labor Charges'] = edited_hr_df['Salary'] * 0.15
-edited_hr_df['Benefits'] = edited_hr_df['Salary'] * 0.20
-edited_hr_df['Total'] = edited_hr_df['Salary'] + edited_hr_df['Labor Charges'] + edited_hr_df['Benefits']
+# edited_hr_df['Labor Charges'] = edited_hr_df['Salary'] * 0.15
+# edited_hr_df['Benefits'] = edited_hr_df['Salary'] * 0.20
+# edited_hr_df['Total'] = edited_hr_df['Salary'] + edited_hr_df['Labor Charges'] + edited_hr_df['Benefits']
 
-# Display the updated HR costs
-edited_hr_df.style.format({
-    'Salary': '£{:,.0f}',
-    'Labor Charges': '£{:,.0f}',
-    'Benefits': '£{:,.0f}',
-    'Total': '£{:,.0f}'
-})
+# # Display the updated HR costs
+# edited_hr_df.style.format({
+#     'Salary': '£{:,.0f}',
+#     'Labor Charges': '£{:,.0f}',
+#     'Benefits': '£{:,.0f}',
+#     'Total': '£{:,.0f}'
+# })
 
 # st.dataframe(edited_hr_df)
 
@@ -283,12 +298,50 @@ st.subheader('HR Costs Percentage Breakdown by Role and Year')
 hr_costs_percentage = hr_costs_by_role.apply(lambda x: x / x.sum() * 100, axis=1)
 st.dataframe(hr_costs_percentage.style.format('{:.2f}%'))
 
+
+# Headcount by Role and Year
+st.subheader('Headcount by Role and Year')
+
+# Prepare data for the chart
+hr_costs_by_role = edited_hr_df.groupby(['Start Year', 'Role'])['Total'].count().unstack()
+
+# Create the horizontal bar chart
+fig, ax = plt.subplots(figsize=(12, 8))
+
+hr_costs_by_role.plot(kind='barh', stacked=False, ax=ax)
+
+ax.set_xlabel('Quantity')
+ax.set_ylabel('Year')
+ax.set_title('Headcount by Role and Year')
+ax.legend(title='Role', bbox_to_anchor=(1.05, 1), loc='upper left')
+
+# Add value labels on the bars, showing the total headcount on each bar
+for container in ax.containers:
+    ax.bar_label(container, label_type='edge')
+
+# Add separation space between bars
+ax.margins(y=0.2)
+
+plt.tight_layout()
+st.pyplot(fig)
+
+
+# Headcount by Role and Year Table. Add the number of customers for each year, as the second column.
+hr_costs_by_role['Customers'] = [int(customer_base[i]) for i in range(11, months, 12)]
+# reorder columns
+hr_costs_by_role = hr_costs_by_role[['Customers'] + [col for col in hr_costs_by_role.columns if col != 'Customers']]
+# Add a last column with the total headcount for each year, excluding the 'Customers' column
+hr_costs_by_role['Total Headcount'] = hr_costs_by_role.sum(axis=1) - hr_costs_by_role['Customers']
+
+st.dataframe(hr_costs_by_role)
+
+
 st.subheader('Total HR Costs per Year, by Business Area')
 
 # Define role to area mapping
 role_to_area = {
     'CEO': 'Administration',
-    'CTO': 'Engineering',
+    'COO': 'Administration',
     'CFO': 'Administration',
     'Sales Manager': 'S&M',
     'Marketing Manager': 'S&M',
@@ -357,7 +410,8 @@ df = pd.DataFrame({
 # Calculate EBITDA, Tax, and Net Profit
 df['HR Costs'] = hr_costs_per_year['Total HR Costs']
 df['Additional Costs'] = additional_costs_df['Total Additional Costs']
-df['Total Costs'] = df['Total Costs'] + df['HR Costs'] + df['Additional Costs']
+df['Total Costs'] = df['HR Costs'] + df['Additional Costs']
+
 df['EBITDA'] = df['Revenue'] - df['Total Costs']
 df['Tax'] = df['EBITDA'].apply(lambda x: calculate_uk_corporation_tax(x, 2023))
 df['Net Profit'] = df['EBITDA'] - df['Tax']
@@ -463,7 +517,8 @@ fig, ax = plt.subplots(figsize=(12, 6))
 
 years = df['Year']
 revenue = df['Revenue']
-total_costs = df['Total Costs'] + df['HR Costs']
+# total_costs = df['Total Costs'] + df['HR Costs']
+total_costs = df['Total Costs']
 profit_loss = df['Net Profit']
 
 ax.bar(years, revenue, label='Revenue', alpha=0.8, color='g')
