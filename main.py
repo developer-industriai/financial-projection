@@ -375,3 +375,48 @@ st.dataframe(yearly_breakdown.style.format({
     'Total Costs': '£{:,.0f}',
     'Net Profit/Loss': '£{:,.0f}'
 }))
+
+# After the existing visualizations, add the following code:
+
+st.subheader('Annual Budget Breakdown by Department')
+
+# Prepare data for the chart
+years = df['Year']
+sm_costs = [r * sales_marketing_pct for r in df['Revenue']]
+engineering_costs = [r * engineering_pct for r in df['Revenue']]
+operations_costs = [r * operations_pct for r in df['Revenue']]
+admin_costs = [r * admin_pct for r in df['Revenue']]
+
+# Create the stacked bar chart
+fig, ax = plt.subplots(figsize=(12, 6))
+
+ax.bar(years, sm_costs, label='Sales & Marketing', alpha=0.8)
+ax.bar(years, engineering_costs, bottom=sm_costs, label='Engineering', alpha=0.8)
+ax.bar(years, operations_costs, bottom=[i+j for i,j in zip(sm_costs, engineering_costs)], label='Operations', alpha=0.8)
+ax.bar(years, admin_costs, bottom=[i+j+k for i,j,k in zip(sm_costs, engineering_costs, operations_costs)], label='Administration', alpha=0.8)
+
+ax.set_xlabel('Year')
+ax.set_ylabel('Budget (£)')
+ax.set_title('Annual Budget Breakdown by Department')
+ax.legend(loc='upper left')
+
+# Add value labels on the bars
+for i, year in enumerate(years):
+    total = sm_costs[i] + engineering_costs[i] + operations_costs[i] + admin_costs[i]
+    ax.text(year, total, f'£{total:,.0f}', ha='center', va='bottom')
+
+plt.tight_layout()
+st.pyplot(fig)
+
+# Add a table with the exact figures
+st.subheader('Annual Budget Breakdown (Detailed)')
+budget_breakdown = pd.DataFrame({
+    'Year': years,
+    'Sales & Marketing': sm_costs,
+    'Engineering': engineering_costs,
+    'Operations': operations_costs,
+    'Administration': admin_costs,
+    'Total Budget': [sum(x) for x in zip(sm_costs, engineering_costs, operations_costs, admin_costs)]
+})
+
+st.dataframe(budget_breakdown.style.format({col: '£{:,.0f}' for col in budget_breakdown.columns if col != 'Year'}))
