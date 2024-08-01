@@ -5,6 +5,8 @@ from scipy.stats import norm
 import matplotlib.pyplot as plt
 import numpy_financial as npf
 
+TOTAL_NUMBER_OF_SCHOOLS = 25022 # Total number of schools in the UK
+
 def calculate_npv(cash_flows, discount_rate):
     return np.sum(cash_flows / (1 + discount_rate) ** np.arange(len(cash_flows)))
 
@@ -144,6 +146,9 @@ def calculate_additional_costs(years, employee_counts, customer_counts):
     
     return pd.DataFrame(costs)
 
+def calculate_cagr(start_value, end_value, num_years):
+    return (end_value / start_value) ** (1 / num_years) - 1
+
 # Main Streamlit app code
 st.title('UK SaaS Financial Projection for Schools')
 
@@ -152,7 +157,7 @@ initial_investment = st.sidebar.number_input('Initial Investment (£)', min_valu
 initial_customers = st.sidebar.number_input('Initial number of customers', min_value=1, value=10)
 monthly_growth_rate = st.sidebar.slider('Monthly growth rate (%)', 0.0, 10.0, 5.0) / 100
 churn_rate = st.sidebar.slider('Monthly churn rate (%)', 0.0, 5.0, 1.0) / 100
-annual_subscription_price = st.sidebar.number_input('Annual subscription price (£)', min_value=0, value=1000)
+annual_subscription_price = st.sidebar.number_input('Annual subscription price (£)', min_value=0, value=6000)
 
 # Cost structure (as % of revenue)
 st.sidebar.subheader('Cost Structure (% of Revenue)')
@@ -287,11 +292,41 @@ st.dataframe(df.style.format({
 cash_flows = [-initial_investment] + df['Net Profit'].tolist()
 npv = calculate_npv(cash_flows, 0.1)  # Assuming 10% discount rate
 irr = calculate_irr(cash_flows)
+marketshare = df['Customers'].iloc[-1] / TOTAL_NUMBER_OF_SCHOOLS
 
 st.subheader('Financial Indicators')
+
+# Calculate monthly growth rate (already defined in input parameters)
+monthly_growth = monthly_growth_rate * 100  # Convert to percentage
+
+# Calculate CAGR for customers and revenue
+customer_cagr = calculate_cagr(df['Customers'].iloc[0], df['Customers'].iloc[-1], 5)
+revenue_cagr = calculate_cagr(df['Revenue'].iloc[0], df['Revenue'].iloc[-1], 5)
+
 col1, col2 = st.columns(2)
 col1.metric('Net Present Value (NPV)', f'£{npv:,.0f}')
 col2.metric('Internal Rate of Return (IRR)', f'{irr:.2%}')
+
+col1, col2 = st.columns(2)
+col1.metric('Monthly Growth Rate', f'{monthly_growth:.2f}%')
+col2.metric('Customer CAGR (5 years)', f'{customer_cagr:.2%}')
+
+col1, col2 = st.columns(2)
+col1.metric('Revenue CAGR (5 years)', f'{revenue_cagr:.2%}')
+col2.metric('Number of Customers (5 years)', int(df['Customers'].iloc[-1]))
+
+col1.metric('Market Share (5 years)', f'{marketshare:.2%}')
+
+# Growth rates table
+growth_rates = pd.DataFrame({
+    'Metric': ['Monthly Growth Rate', 'Customer CAGR (5 years)', 'Revenue CAGR (5 years)'],
+    'Rate': [monthly_growth, customer_cagr * 100, revenue_cagr * 100]
+})
+
+st.subheader('Growth Rates Summary')
+st.dataframe(growth_rates.style.format({
+    'Rate': '{:.2f}%'
+}))
 
 # Monte Carlo simulation
 st.subheader('Monte Carlo Simulation')
