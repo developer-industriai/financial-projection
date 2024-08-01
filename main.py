@@ -88,24 +88,14 @@ def calculate_hr_resources(customer_base, years):
                         salary = role["base_salary"]
                     
                     salary *= (1.03 ** (year - 1))  # 3% annual raise
-                    labor_charges = salary * 0.15  # Assuming 15% labor charges
-                    benefits = salary * 0.20  # Assuming 20% benefits
-                    total = salary + labor_charges + benefits
                     hr_resources.append({
                         "Role": role["title"],
                         "Start Year": year,
                         "End Year": min(year, role["end_year"]),
                         "Seniority": seniority,
                         "Salary": salary,
-                        "Labor Charges": labor_charges,
-                        "Benefits": benefits,
-                        "Total": total
+                        "Necessary Resources": role_counts[role["title"]]
                     })
-        
-        # Add the number of necessary resources for each role
-        for item in hr_resources:
-            if item["Start Year"] == year:
-                item["Necessary Resources"] = role_counts[item["Role"]]
     
     return pd.DataFrame(hr_resources)
 
@@ -170,21 +160,47 @@ total_costs = [sum(costs) for costs in zip(sales_marketing_costs, customer_succe
 # HR Resources Table
 st.subheader('HR Resources Projection')
 hr_df = calculate_hr_resources([customer_base[i] for i in range(11, months, 12)], 5)
-st.dataframe(hr_df.style.format({
+
+# Make the salary column editable
+edited_hr_df = st.data_editor(
+    hr_df,
+    column_config={
+        "Salary": st.column_config.NumberColumn(
+            "Salary",
+            help="Edit the salary for each role",
+            min_value=0,
+            max_value=1000000,
+            step=1000,
+            format="£%d"
+        )
+    },
+    hide_index=True,
+    num_rows="dynamic",
+)
+
+# Recalculate labor charges, benefits, and total based on edited salaries
+edited_hr_df['Labor Charges'] = edited_hr_df['Salary'] * 0.15
+edited_hr_df['Benefits'] = edited_hr_df['Salary'] * 0.20
+edited_hr_df['Total'] = edited_hr_df['Salary'] + edited_hr_df['Labor Charges'] + edited_hr_df['Benefits']
+
+# Display the updated HR costs
+edited_hr_df.style.format({
     'Salary': '£{:,.0f}',
     'Labor Charges': '£{:,.0f}',
     'Benefits': '£{:,.0f}',
     'Total': '£{:,.0f}'
-}))
+})
+# st.dataframe(edited_hr_df)
 
 # Calculate total HR costs per year
-hr_costs_per_year = hr_df.groupby('Start Year')['Total'].sum().reset_index()
+hr_costs_per_year = edited_hr_df.groupby('Start Year')['Total'].sum().reset_index()
 hr_costs_per_year.columns = ['Year', 'Total HR Costs']
 
 st.subheader('Total HR Costs per Year')
 st.dataframe(hr_costs_per_year.style.format({
     'Total HR Costs': '£{:,.0f}'
 }))
+
 
 # Prepare DataFrame for display
 df = pd.DataFrame({
@@ -196,6 +212,7 @@ df = pd.DataFrame({
 })
 
 # Calculate EBITDA, Tax, and Net Profit
+df['HR Costs'] = hr_costs_per_year['Total HR Costs']
 df['EBITDA'] = df['Revenue'] - df['Total Costs'] - df['HR Costs']
 df['Tax'] = df['EBITDA'].apply(lambda x: calculate_uk_corporation_tax(x, 2023))
 df['Net Profit'] = df['EBITDA'] - df['Tax']
