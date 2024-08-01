@@ -53,16 +53,16 @@ def run_monte_carlo(initial_investment, revenues, costs, iterations=1000):
 
 def calculate_hr_resources(customer_base, years):
     roles = [
-        {"title": "CEO", "base_salary": 150000, "start_year": 1, "end_year": 5, "seniority": "Executive"},
-        {"title": "CTO", "base_salary": 130000, "start_year": 1, "end_year": 5, "seniority": "Executive"},
-        {"title": "CFO", "base_salary": 120000, "start_year": 2, "end_year": 5, "seniority": "Executive"},
-        {"title": "Sales Manager", "base_salary": 80000, "start_year": 1, "end_year": 5, "seniority": "Senior"},
-        {"title": "Marketing Manager", "base_salary": 75000, "start_year": 2, "end_year": 5, "seniority": "Senior"},
-        {"title": "Customer Success Manager", "base_salary": 70000, "start_year": 2, "end_year": 5, "seniority": "Senior"},
-        {"title": "Software Engineer", "base_salary": 80000, "start_year": 1, "end_year": 5, "seniority": "Mid-level"},
-        {"title": "UI/UX Designer", "base_salary": 70000, "start_year": 2, "end_year": 5, "seniority": "Mid-level"},
-        {"title": "Sales Representative", "base_salary": 50000, "start_year": 1, "end_year": 5, "seniority": "Junior"},
-        {"title": "Customer Support Specialist", "base_salary": 45000, "start_year": 1, "end_year": 5, "seniority": "Junior"},
+        {"title": "CEO", "base_salary": 65000, "start_year": 1, "end_year": 5, "seniority": "Executive"},
+        {"title": "CTO", "base_salary": 65000, "start_year": 3, "end_year": 5, "seniority": "Executive"},
+        {"title": "CFO", "base_salary": 60000, "start_year": 2, "end_year": 5, "seniority": "Executive"},
+        {"title": "Sales Manager", "base_salary": 46000, "start_year": 1, "end_year": 5, "seniority": "Senior"},
+        {"title": "Marketing Manager", "base_salary": 46000, "start_year": 2, "end_year": 5, "seniority": "Senior"},
+        {"title": "Customer Success Manager", "base_salary": 46000, "start_year": 2, "end_year": 5, "seniority": "Senior"},
+        {"title": "Software Engineer", "base_salary": 46000, "start_year": 1, "end_year": 5, "seniority": "Mid-level"},
+        {"title": "UI/UX Designer", "base_salary": 38000, "start_year": 2, "end_year": 5, "seniority": "Mid-level"},
+        {"title": "Sales Representative", "base_salary": 40000, "start_year": 1, "end_year": 5, "seniority": "Junior"},
+        {"title": "Customer Support Specialist", "base_salary": 35000, "start_year": 1, "end_year": 5, "seniority": "Junior"},
     ]
     
     hr_resources = []
@@ -73,6 +73,8 @@ def calculate_hr_resources(customer_base, years):
             if role["start_year"] <= year <= role["end_year"]:
                 if role["title"] in ["CEO", "CTO", "CFO"]:
                     count = 1
+                elif role["title"] == "Customer Support Specialist":
+                    count = max(1, int(customer_count / 20))  # 1 specialist per 20 customers
                 else:
                     base_count = max(1, int(customer_count / 200))
                     count = base_count + (base_count // 5)  # Add a manager for every 5 employees
@@ -88,14 +90,26 @@ def calculate_hr_resources(customer_base, years):
                         salary = role["base_salary"]
                     
                     salary *= (1.03 ** (year - 1))  # 3% annual raise
+                    labor_charges = salary * 0.15  # Assuming 15% labor charges
+                    benefits = salary * 0.20  # Assuming 20% benefits
+                    total = salary + labor_charges + benefits
                     hr_resources.append({
                         "Role": role["title"],
                         "Start Year": year,
                         "End Year": min(year, role["end_year"]),
                         "Seniority": seniority,
                         "Salary": salary,
+                        "Labor Charges": labor_charges,
+                        "Benefits": benefits,
+                        "Total": total,
                         "Necessary Resources": role_counts[role["title"]]
                     })
+        
+        # Add the number of necessary resources for each role
+        # for item in hr_resources:
+        #     if item["Start Year"] == year:
+        #         item["Necessary Resources"] = role_counts[item["Role"]]
+    
     
     return pd.DataFrame(hr_resources)
 
@@ -190,6 +204,7 @@ edited_hr_df.style.format({
     'Benefits': '£{:,.0f}',
     'Total': '£{:,.0f}'
 })
+
 # st.dataframe(edited_hr_df)
 
 # Calculate total HR costs per year
