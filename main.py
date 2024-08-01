@@ -7,6 +7,9 @@ import numpy_financial as npf
 
 TOTAL_NUMBER_OF_SCHOOLS = 25022 # Total number of schools in the UK
 
+ONE_CS_PER_CUSTOMERS = 50 # One customer support specialist per 20 customers
+ONE_MANAGER_PER_EMPLOYEES = 10 # One manager per 10 employees
+
 def calculate_npv(cash_flows, discount_rate):
     return np.sum(cash_flows / (1 + discount_rate) ** np.arange(len(cash_flows)))
 
@@ -76,10 +79,10 @@ def calculate_hr_resources(customer_base, years):
                 if role["title"] in ["CEO", "CTO", "CFO"]:
                     count = 1
                 elif role["title"] == "Customer Support Specialist":
-                    count = max(1, int(customer_count / 20))  # 1 specialist per 20 customers
+                    count = max(1, int(customer_count / ONE_CS_PER_CUSTOMERS))  # 1 specialist per 50 customers
                 else:
                     base_count = max(1, int(customer_count / 200))
-                    count = base_count + (base_count // 5)  # Add a manager for every 5 employees
+                    count = base_count + (base_count // ONE_MANAGER_PER_EMPLOYEES)  # Add a manager for every 10 employees
                 
                 role_counts[role["title"]] = count
                 
@@ -155,7 +158,7 @@ st.title('UK SaaS Financial Projection for Schools')
 st.sidebar.header('Input Parameters')
 initial_investment = st.sidebar.number_input('Initial Investment (£)', min_value=0, value=500000, step=10000)
 initial_customers = st.sidebar.number_input('Initial number of customers', min_value=1, value=10)
-monthly_growth_rate = st.sidebar.slider('Monthly growth rate (%)', 0.0, 10.0, 5.0) / 100
+monthly_growth_rate = st.sidebar.slider('Monthly growth rate (%)', 0.0, 10.0, 8.5) / 100
 churn_rate = st.sidebar.slider('Monthly churn rate (%)', 0.0, 5.0, 1.0) / 100
 annual_subscription_price = st.sidebar.number_input('Annual subscription price (£)', min_value=0, value=6000)
 
@@ -247,6 +250,89 @@ st.subheader('Total HR Costs per Year')
 st.dataframe(hr_costs_per_year.style.format({
     'Total HR Costs': '£{:,.0f}'
 }))
+
+st.subheader('Total HR Costs per Year, per Role')
+
+# Prepare data for the chart
+hr_costs_by_role = edited_hr_df.groupby(['Start Year', 'Role'])['Total'].sum().unstack()
+
+# Create the horizontal bar chart
+fig, ax = plt.subplots(figsize=(12, 8))
+
+hr_costs_by_role.plot(kind='barh', stacked=True, ax=ax)
+
+ax.set_xlabel('Total Cost (£)')
+ax.set_ylabel('Year')
+ax.set_title('Total HR Costs per Year, per Role')
+ax.legend(title='Role', bbox_to_anchor=(1.05, 1), loc='upper left')
+
+# Add value labels on the bars
+for i, year in enumerate(hr_costs_by_role.index):
+    total = hr_costs_by_role.loc[year].sum()
+    ax.text(total, i, f'£{total:,.0f}', va='center')
+
+plt.tight_layout()
+st.pyplot(fig)
+
+# Add a table with the exact figures
+st.subheader('HR Costs Breakdown by Role and Year')
+st.dataframe(hr_costs_by_role.style.format('£{:,.0f}'))
+
+# Calculate and display the percentage breakdown
+st.subheader('HR Costs Percentage Breakdown by Role and Year')
+hr_costs_percentage = hr_costs_by_role.apply(lambda x: x / x.sum() * 100, axis=1)
+st.dataframe(hr_costs_percentage.style.format('{:.2f}%'))
+
+st.subheader('Total HR Costs per Year, by Business Area')
+
+# Define role to area mapping
+role_to_area = {
+    'CEO': 'Administration',
+    'CTO': 'Engineering',
+    'CFO': 'Administration',
+    'Sales Manager': 'S&M',
+    'Marketing Manager': 'S&M',
+    'Customer Success Manager': 'Operations',
+    'Software Engineer': 'Engineering',
+    'UI/UX Designer': 'Engineering',
+    'Sales Representative': 'S&M',
+    'Customer Support Specialist': 'Operations'
+}
+
+# Add the 'Area' column to the DataFrame
+edited_hr_df['Area'] = edited_hr_df['Role'].map(role_to_area)
+
+# Prepare data for the chart
+hr_costs_by_area = edited_hr_df.groupby(['Start Year', 'Area'])['Total'].sum().unstack()
+
+# Create the horizontal bar chart
+fig, ax = plt.subplots(figsize=(12, 8))
+
+hr_costs_by_area.plot(kind='barh', stacked=True, ax=ax)
+
+ax.set_xlabel('Total Cost (£)')
+ax.set_ylabel('Year')
+ax.set_title('Total HR Costs per Year, by Business Area')
+ax.legend(title='Business Area', bbox_to_anchor=(1.05, 1), loc='upper left')
+
+# Add value labels on the bars
+for i, year in enumerate(hr_costs_by_area.index):
+    total = hr_costs_by_area.loc[year].sum()
+    ax.text(total, i, f'£{total:,.0f}', va='center')
+
+plt.tight_layout()
+st.pyplot(fig)
+
+# Add a table with the exact figures
+st.subheader('HR Costs Breakdown by Business Area and Year')
+st.dataframe(hr_costs_by_area.style.format('£{:,.0f}'))
+
+# Calculate and display the percentage breakdown
+st.subheader('HR Costs Percentage Breakdown by Business Area and Year')
+hr_costs_percentage_area = hr_costs_by_area.apply(lambda x: x / x.sum() * 100, axis=1)
+st.dataframe(hr_costs_percentage_area.style.format('{:.2f}%'))
+
+
 
 # Calculate additional operational costs
 employee_counts = edited_hr_df.groupby('Start Year')['Necessary Resources'].sum().tolist()
