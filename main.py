@@ -437,6 +437,14 @@ df['Total Costs'] = df['HR Costs'] + df['Additional Costs']
 df['EBITDA'] = df['Revenue'] - df['Total Costs']
 df['Tax'] = df['EBITDA'].apply(lambda x: calculate_uk_corporation_tax(x, 2023))
 
+# Subtract loss from previous year's tax, but only if the EBITDA was negative in the previous year
+df['Loss'] = df['EBITDA'].apply(lambda x: max(0, -x))
+df['Tax'] = df['Tax'] - df['Loss'].shift(1).fillna(0)
+df['Tax'] = df['Tax'].clip(lower=0)
+# Fill NaN values with 0
+df['Tax'] = df['Tax'].fillna(0)
+
+
 df['Net Profit'] = df['EBITDA'] - df['Tax']
 
 st.subheader('5-Year Financial Projection')
@@ -447,6 +455,7 @@ st.dataframe(df.style.format({
     'Total Costs': '£{:,.0f}',
     'Additional Costs': '£{:,.0f}',
     'EBITDA': '£{:,.0f}',
+    'Loss': '£{:,.0f}',
     'Tax': '£{:,.0f}',
     'Net Profit': '£{:,.0f}'
 }))
@@ -543,6 +552,7 @@ revenue = df['Revenue']
 # total_costs = df['Total Costs'] + df['HR Costs']
 total_costs = df['Total Costs']
 profit_loss = df['Net Profit']
+profit_loss_percentage = profit_loss / revenue
 
 ax.bar(years, revenue, label='Revenue', alpha=0.8, color='g')
 ax.bar(years, -total_costs, label='Costs', alpha=0.8, color='r')
@@ -567,12 +577,14 @@ yearly_breakdown = pd.DataFrame({
     'Year': years,
     'Revenue': revenue,
     'Total Costs': total_costs,
-    'Net Profit/Loss': profit_loss
+    'Net Profit/Loss': profit_loss,
+    'Net P&L %': profit_loss_percentage,
 })
 st.dataframe(yearly_breakdown.style.format({
     'Revenue': '£{:,.0f}',
     'Total Costs': '£{:,.0f}',
-    'Net Profit/Loss': '£{:,.0f}'
+    'Net Profit/Loss': '£{:,.0f}',
+    'Net P&L %': '{:.2%}'
 }))
 
 # After the existing visualizations, add the following code:
