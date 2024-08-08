@@ -21,6 +21,8 @@ def calculate_uk_corporation_tax(profit, year):
     if year < 2023:
         return profit * 0.19
     else:
+        if profit <= 0:
+            return 0
         if profit <= 50000:
             return profit * 0.19
         elif profit > 250000:
@@ -126,18 +128,19 @@ def validate_cost_structure(sales_marketing, customer_success, admin, operations
     total = sales_marketing + customer_success + admin + operations + engineering
     return abs(total - 100) < 0.01  # Allow for small floating-point errors
 
-def calculate_additional_costs(years, employee_counts, customer_counts):
+def calculate_services_costs(years, employee_counts, customer_counts):
     costs = []
     for year, employees, customers in zip(range(1, years + 1), employee_counts, customer_counts):
         accounting_cost = 12000 * (1 + 0.1 * (year - 1))  # Base 12000/year, 10% increase each year
         legal_cost = 10000 * (1 + 0.05 * (year - 1))  # Base 10000/year, 5% increase each year
         rent_cost = 200 * 12 * employees  # £200/person/month
         office_materials = 500 * employees  # £500/person/year
-        software_licenses = 1000 * employees  # £1000/person/year for various software
+        software_licenses = 50 * employees  # £1000/person/year for various software
         marketing_cost = 5000 * (1 + 0.2 * (year - 1)) + 50 * customers  # Base 5000/year, 20% increase each year, plus £50 per customer
         misc_cost = 10000 * (1 + 0.05 * (year - 1))  # Base 10000/year, 5% increase each year
-
-        total_cost = accounting_cost + legal_cost + rent_cost + office_materials + software_licenses + marketing_cost + misc_cost
+        equipment_cost = 1000 * employees  # £5000/person/year for equipment
+        
+        total_cost = accounting_cost + legal_cost + rent_cost + office_materials + software_licenses + marketing_cost + misc_cost + equipment_cost
         
         costs.append({
             'Year': year,
@@ -146,8 +149,9 @@ def calculate_additional_costs(years, employee_counts, customer_counts):
             'Rent (Co-working)': rent_cost,
             'Office Materials': office_materials,
             'Software Licenses': software_licenses,
-            'Marketing': marketing_cost,
+            'Advertisement/Media': marketing_cost,
             'Miscellaneous': misc_cost,
+            'Equipment': equipment_cost,
             'Total Additional Costs': total_cost
         })
     
@@ -404,12 +408,13 @@ st.dataframe(hr_costs_percentage_area.style.format('{:.2f}%'))
 
 
 
-# Calculate additional operational costs
-employee_counts = edited_hr_df.groupby('Start Year')['Necessary Resources'].sum().tolist()
+# Calculate Services Costs
+# employee_counts = edited_hr_df.groupby('Start Year')['Necessary Resources'].sum().tolist()
+employee_counts = hr_costs_by_role['Total Headcount'].tolist()
 customer_counts = [customer_base[i] for i in range(11, months, 12)]
-additional_costs_df = calculate_additional_costs(5, employee_counts, customer_counts)
+additional_costs_df = calculate_services_costs(5, employee_counts, customer_counts)
 
-st.subheader('Additional Operational Costs')
+st.subheader('Services Costs')
 st.dataframe(additional_costs_df.style.format({col: '£{:,.0f}' for col in additional_costs_df.columns if col != 'Year'}))
 
 
@@ -431,6 +436,7 @@ df['Total Costs'] = df['HR Costs'] + df['Additional Costs']
 
 df['EBITDA'] = df['Revenue'] - df['Total Costs']
 df['Tax'] = df['EBITDA'].apply(lambda x: calculate_uk_corporation_tax(x, 2023))
+
 df['Net Profit'] = df['EBITDA'] - df['Tax']
 
 st.subheader('5-Year Financial Projection')
@@ -650,16 +656,25 @@ pl_data = {
 }
 
 pl_df = pd.DataFrame(pl_data)
-# pl_df["Total"] = pl_df.sum(axis=1)
+pl_df["Total"] = pl_df.sum(axis=1, numeric_only=True)
 
-# st.dataframe(pl_df.style.format('£{:,.0f}'))
 st.dataframe(pl_df.style.format({
     'Year 1': '£{:,.0f}',
     'Year 2': '£{:,.0f}',
     'Year 3': '£{:,.0f}',
     'Year 4': '£{:,.0f}',
-    'Year 5': '£{:,.0f}'
+    'Year 5': '£{:,.0f}',
+    'Total': '£{:,.0f}',
 }))
-# st.dataframe(pl_df)
+
+# Plot the P&L statement
+fig, ax = plt.subplots(figsize=(12, 6))
+pl_df.set_index('Category').drop(columns='Total').loc[['Revenue']].T.plot(kind='bar', ax=ax)
+ax.set_ylabel('Amount (£)')
+ax.set_title('Revenue Over 5 Years')
+plt.xticks(rotation=0)
+plt.tight_layout()
+st.pyplot(fig)
+
 
 st.markdown("**Note:** This P&L statement is based on the projections and calculations from the financial model. All figures are in British Pounds (£).")
