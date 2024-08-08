@@ -78,26 +78,35 @@ def calculate_hr_resources(customer_base, years):
             if role["start_year"] <= year <= role["end_year"]:
                 if role["title"] in ["CEO", "COO", "CFO"]:
                     count = 1
+                    # Set allocation percentage for C-level executives
+                    if year == 1:
+                        allocation = 0.3
+                    elif year == 2:
+                        allocation = 0.5
+                    else:
+                        allocation = 1.0
                 elif role["title"] == "Customer Support Specialist":
-                    count = max(1, int(customer_count / ONE_CS_PER_CUSTOMERS))  # 1 specialist per 50 customers
+                    count = max(1, int(customer_count / ONE_CS_PER_CUSTOMERS))
+                    allocation = 1.0
                 else:
                     base_count = max(1, int(customer_count / 200))
-                    count = base_count + (base_count // ONE_MANAGER_PER_EMPLOYEES)  # Add a manager for every 10 employees
+                    count = base_count + (base_count // ONE_MANAGER_PER_EMPLOYEES)
+                    allocation = 1.0
                 
                 role_counts[role["title"]] = count
                 
                 for i in range(count):
                     seniority = role["seniority"]
-                    if i > 0 and (i + 1) % 6 == 0:  # Every 6th person (including the first) is a manager
+                    if i > 0 and (i + 1) % 6 == 0:
                         seniority = "Manager"
-                        salary = role["base_salary"] * 1.3  # 30% more for managers
+                        salary = role["base_salary"] * 1.3
                     else:
                         salary = role["base_salary"]
                     
                     salary *= (1.03 ** (year - 1))  # 3% annual raise
-                    labor_charges = salary * 0.15  # Assuming 15% labor charges
-                    benefits = salary * 0.20  # Assuming 20% benefits
-                    total = salary + labor_charges + benefits
+                    labor_charges = salary * 0.15
+                    benefits = salary * 0.20
+                    total = (salary + labor_charges + benefits) * allocation
                     hr_resources.append({
                         "Role": role["title"],
                         "Start Year": year,
@@ -106,15 +115,10 @@ def calculate_hr_resources(customer_base, years):
                         "Salary": salary,
                         "Labor Charges": labor_charges,
                         "Benefits": benefits,
+                        "AllocationPercentage": allocation * 100,
                         "Total": total,
                         "Necessary Resources": role_counts[role["title"]]
                     })
-        
-        # Add the number of necessary resources for each role
-        # for item in hr_resources:
-        #     if item["Start Year"] == year:
-        #         item["Necessary Resources"] = role_counts[item["Role"]]
-    
     
     return pd.DataFrame(hr_resources)
 
@@ -232,9 +236,17 @@ edited_hr_df = st.data_editor(
             help="Automatically calculated as 20% of the salary",
             format="£%d"
         ),
+        'AllocationPercentage': st.column_config.NumberColumn(
+            "Allocation %",
+            help="Percentage of time allocated to the role",
+            min_value=0,
+            max_value=100,
+            step=1,
+            format="%d%%"
+        ),
         'Total': st.column_config.NumberColumn(
             "Total",
-            help="Automatically calculated as the sum of Salary, Labor Charges, and Benefits",
+            help="Automatically calculated as the sum of Salary, Labor Charges, and Benefits, adjusted for allocation",
             format="£%d"
         )
     },
@@ -252,6 +264,7 @@ edited_hr_df = st.data_editor(
 #     'Salary': '£{:,.0f}',
 #     'Labor Charges': '£{:,.0f}',
 #     'Benefits': '£{:,.0f}',
+#  'AllocationPercentage': '{:.0f}%',
 #     'Total': '£{:,.0f}'
 # })
 
@@ -291,6 +304,8 @@ st.pyplot(fig)
 
 # Add a table with the exact figures
 st.subheader('HR Costs Breakdown by Role and Year')
+# Add a total column with the sum of all costs for each year
+hr_costs_by_role['Total'] = hr_costs_by_role.sum(axis=1)
 st.dataframe(hr_costs_by_role.style.format('£{:,.0f}'))
 
 # Calculate and display the percentage breakdown
@@ -378,6 +393,8 @@ st.pyplot(fig)
 
 # Add a table with the exact figures
 st.subheader('HR Costs Breakdown by Business Area and Year')
+# Add a total column with the sum of all costs for each year
+hr_costs_by_area['Total'] = hr_costs_by_area.sum(axis=1)
 st.dataframe(hr_costs_by_area.style.format('£{:,.0f}'))
 
 # Calculate and display the percentage breakdown
@@ -605,31 +622,44 @@ pl_data = {
                  'Sales & Marketing', 'Engineering', 'Operations', 'Administration', 
                  'HR Costs', 'Additional Costs', 'Total Operating Expenses', 
                  'Operating Income (EBITDA)', 'Tax', 'Net Profit'],
-    'Year 1': [df['Revenue'].iloc[0], 0, df['Revenue'].iloc[0], '', 
-               sm_costs[0], engineering_costs[0], operations_costs[0], admin_costs[0],
-               df['HR Costs'].iloc[0], df['Additional Costs'].iloc[0], df['Total Costs'].iloc[0],
-               df['EBITDA'].iloc[0], df['Tax'].iloc[0], df['Net Profit'].iloc[0]],
-    'Year 2': [df['Revenue'].iloc[1], 0, df['Revenue'].iloc[1], '',
-               sm_costs[1], engineering_costs[1], operations_costs[1], admin_costs[1],
-               df['HR Costs'].iloc[1], df['Additional Costs'].iloc[1], df['Total Costs'].iloc[1],
-               df['EBITDA'].iloc[1], df['Tax'].iloc[1], df['Net Profit'].iloc[1]],
-    'Year 3': [df['Revenue'].iloc[2], 0, df['Revenue'].iloc[2], '',
-               sm_costs[2], engineering_costs[2], operations_costs[2], admin_costs[2],
-               df['HR Costs'].iloc[2], df['Additional Costs'].iloc[2], df['Total Costs'].iloc[2],
-               df['EBITDA'].iloc[2], df['Tax'].iloc[2], df['Net Profit'].iloc[2]],
-    'Year 4': [df['Revenue'].iloc[3], 0, df['Revenue'].iloc[3], '',
-               sm_costs[3], engineering_costs[3], operations_costs[3], admin_costs[3],
-               df['HR Costs'].iloc[3], df['Additional Costs'].iloc[3], df['Total Costs'].iloc[3],
-               df['EBITDA'].iloc[3], df['Tax'].iloc[3], df['Net Profit'].iloc[3]],
-    'Year 5': [df['Revenue'].iloc[4], 0, df['Revenue'].iloc[4], '',
-               sm_costs[4], engineering_costs[4], operations_costs[4], admin_costs[4],
-               df['HR Costs'].iloc[4], df['Additional Costs'].iloc[4], df['Total Costs'].iloc[4],
-               df['EBITDA'].iloc[4], df['Tax'].iloc[4], df['Net Profit'].iloc[4]]
+    
+    'Year 1': [round(df['Revenue'].iloc[0], 2), 0, round(df['Revenue'].iloc[0], 2), 0, 
+               round(sm_costs[0], 2), round(engineering_costs[0], 2), round(operations_costs[0], 2), round(admin_costs[0], 2),
+               round(df['HR Costs'].iloc[0], 2), round(df['Additional Costs'].iloc[0], 2), round(df['Total Costs'].iloc[0], 2),
+               round(df['EBITDA'].iloc[0], 2), round(df['Tax'].iloc[0], 2), round(df['Net Profit'].iloc[0], 2)],
+    
+    'Year 2': [round(df['Revenue'].iloc[1], 2), 0, round(df['Revenue'].iloc[1], 2), 0,
+               round(sm_costs[1], 2), round(engineering_costs[1], 2), round(operations_costs[1], 2), round(admin_costs[1], 2),
+               round(df['HR Costs'].iloc[1], 2), round(df['Additional Costs'].iloc[1], 2), round(df['Total Costs'].iloc[1], 2),
+               round(df['EBITDA'].iloc[1], 2), round(df['Tax'].iloc[1], 2), round(df['Net Profit'].iloc[1], 2)],
+    
+    'Year 3': [round(df['Revenue'].iloc[2], 2), 0, round(df['Revenue'].iloc[2], 2), 0,
+               round(sm_costs[2], 2), round(engineering_costs[2], 2), round(operations_costs[2], 2), round(admin_costs[2], 2),
+               round(df['HR Costs'].iloc[2], 2), round(df['Additional Costs'].iloc[2], 2), round(df['Total Costs'].iloc[2], 2),
+               round(df['EBITDA'].iloc[2], 2), round(df['Tax'].iloc[2], 2), round(df['Net Profit'].iloc[2], 2)],
+    
+    'Year 4': [round(df['Revenue'].iloc[3], 2), 0, round(df['Revenue'].iloc[3], 2), 0,
+               round(sm_costs[3], 2), round(engineering_costs[3], 2), round(operations_costs[3], 2), round(admin_costs[3], 2),
+               round(df['HR Costs'].iloc[3], 2), round(df['Additional Costs'].iloc[3], 2), round(df['Total Costs'].iloc[3], 2),
+               round(df['EBITDA'].iloc[3], 2), round(df['Tax'].iloc[3], 2), round(df['Net Profit'].iloc[3], 2)],
+   
+    'Year 5': [round(df['Revenue'].iloc[4], 2), 0, round(df['Revenue'].iloc[4], 2), 0,
+               round(sm_costs[4], 2), round(engineering_costs[4], 2), round(operations_costs[4], 2), round(admin_costs[4], 2),
+               round(df['HR Costs'].iloc[4], 2), round(df['Additional Costs'].iloc[4], 2), round(df['Total Costs'].iloc[4], 2),
+               round(df['EBITDA'].iloc[4], 2), round(df['Tax'].iloc[4], 2), round(df['Net Profit'].iloc[4], 2)]
 }
 
 pl_df = pd.DataFrame(pl_data)
+# pl_df["Total"] = pl_df.sum(axis=1)
 
-# st.dataframe(pl_df.style.format({col: '£{:,.0f}' for col in pl_df.columns if col != 'Category'}))
-st.dataframe(pl_df)
+# st.dataframe(pl_df.style.format('£{:,.0f}'))
+st.dataframe(pl_df.style.format({
+    'Year 1': '£{:,.0f}',
+    'Year 2': '£{:,.0f}',
+    'Year 3': '£{:,.0f}',
+    'Year 4': '£{:,.0f}',
+    'Year 5': '£{:,.0f}'
+}))
+# st.dataframe(pl_df)
 
 st.markdown("**Note:** This P&L statement is based on the projections and calculations from the financial model. All figures are in British Pounds (£).")
