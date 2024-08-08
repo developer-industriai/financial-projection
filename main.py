@@ -420,8 +420,8 @@ st.subheader('5-Year Financial Projection')
 st.dataframe(df.style.format({
     'Customers': '{:.0f}',
     'Revenue': '£{:,.0f}',
-    'Total Costs': '£{:,.0f}',
     'HR Costs': '£{:,.0f}',
+    'Total Costs': '£{:,.0f}',
     'Additional Costs': '£{:,.0f}',
     'EBITDA': '£{:,.0f}',
     'Tax': '£{:,.0f}',
@@ -596,3 +596,40 @@ budget_breakdown = pd.DataFrame({
 })
 
 st.dataframe(budget_breakdown.style.format({col: '£{:,.0f}' for col in budget_breakdown.columns if col != 'Year'}))
+
+
+st.subheader('5-Year Profit and Loss (P&L) Statement')
+
+pl_data = {
+    'Category': ['Revenue', 'Cost of Goods Sold', 'Gross Profit', 'Operating Expenses', 
+                 'Sales & Marketing', 'Engineering', 'Operations', 'Administration', 
+                 'HR Costs', 'Additional Costs', 'Total Operating Expenses', 
+                 'Operating Income (EBITDA)', 'Tax', 'Net Profit'],
+    'Year 1': [df['Revenue'].iloc[0], 0, df['Revenue'].iloc[0], '', 
+               sm_costs[0], engineering_costs[0], operations_costs[0], admin_costs[0],
+               df['HR Costs'].iloc[0], df['Additional Costs'].iloc[0], df['Total Costs'].iloc[0],
+               df['EBITDA'].iloc[0], df['Tax'].iloc[0], df['Net Profit'].iloc[0]],
+    'Year 2': [df['Revenue'].iloc[1], 0, df['Revenue'].iloc[1], '',
+               sm_costs[1], engineering_costs[1], operations_costs[1], admin_costs[1],
+               df['HR Costs'].iloc[1], df['Additional Costs'].iloc[1], df['Total Costs'].iloc[1],
+               df['EBITDA'].iloc[1], df['Tax'].iloc[1], df['Net Profit'].iloc[1]],
+    'Year 3': [df['Revenue'].iloc[2], 0, df['Revenue'].iloc[2], '',
+               sm_costs[2], engineering_costs[2], operations_costs[2], admin_costs[2],
+               df['HR Costs'].iloc[2], df['Additional Costs'].iloc[2], df['Total Costs'].iloc[2],
+               df['EBITDA'].iloc[2], df['Tax'].iloc[2], df['Net Profit'].iloc[2]],
+    'Year 4': [df['Revenue'].iloc[3], 0, df['Revenue'].iloc[3], '',
+               sm_costs[3], engineering_costs[3], operations_costs[3], admin_costs[3],
+               df['HR Costs'].iloc[3], df['Additional Costs'].iloc[3], df['Total Costs'].iloc[3],
+               df['EBITDA'].iloc[3], df['Tax'].iloc[3], df['Net Profit'].iloc[3]],
+    'Year 5': [df['Revenue'].iloc[4], 0, df['Revenue'].iloc[4], '',
+               sm_costs[4], engineering_costs[4], operations_costs[4], admin_costs[4],
+               df['HR Costs'].iloc[4], df['Additional Costs'].iloc[4], df['Total Costs'].iloc[4],
+               df['EBITDA'].iloc[4], df['Tax'].iloc[4], df['Net Profit'].iloc[4]]
+}
+
+pl_df = pd.DataFrame(pl_data)
+
+# st.dataframe(pl_df.style.format({col: '£{:,.0f}' for col in pl_df.columns if col != 'Category'}))
+st.dataframe(pl_df)
+
+st.markdown("**Note:** This P&L statement is based on the projections and calculations from the financial model. All figures are in British Pounds (£).")
