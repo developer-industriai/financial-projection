@@ -160,7 +160,7 @@ class SaaSFinancialModel:
         for year, employees, customers in zip(range(1, years + 1), employee_counts, customer_counts):
             accounting_cost = 2000 * (1 + 0.1 * (year - 1))  # Base 2000/year, 10% increase each year
             legal_cost = 10000 * (1 + 0.05 * (year - 1))  # Base 10000/year, 5% increase each year
-            rent_cost = 200 * 12 * employees  # £200/person/month
+            rent_cost = 200 * 12 * employees * 50%  # £200/person/month * 50% ocupancy on hybrid model
             office_materials = 20 * employees  # £20/person/year
             software_licenses = 50 * employees  # £1000/person/year for various software
             marketing_cost = 5000 * (1 + 0.2 * (year - 1)) + 50 * customers  # Base 5000/year, 20% increase each year, plus £50 per customer
