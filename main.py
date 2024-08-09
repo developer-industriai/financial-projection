@@ -19,6 +19,7 @@ class SaaSFinancialModel:
         self.services_costs_df = None
         self.npv_results = None
         self.irr_results = None
+        self.months = 60  # 5 years
      
     @staticmethod   
     def calculate_npv(cash_flows, discount_rate):
@@ -190,9 +191,10 @@ class SaaSFinancialModel:
 
     # RENDERING FUNCTIONS
     def render_sidebar_parameters(self):
-        st.title('UK SaaS Financial Projection for Schools')
+        st.title('UK Start-up Financial Projection (SaaS, B2B)')
 
         st.sidebar.header('Input Parameters')
+        self.market_size = st.sidebar.number_input('Market Size  (number of customers)', min_value=0, value=self.TOTAL_NUMBER_OF_SCHOOLS, step=10000)
         self.initial_investment = st.sidebar.number_input('Initial Investment (£)', min_value=0, value=500000, step=10000)
         self.initial_customers = st.sidebar.number_input('Initial number of customers', min_value=1, value=10)
         self.monthly_growth_rate = st.sidebar.slider('Monthly growth rate (%)', 0.0, 10.0, 9.2) / 100
@@ -202,32 +204,31 @@ class SaaSFinancialModel:
         self.discount_rate = st.sidebar.slider('Discount rate (%)', 0.0, 20.0, 10.0) / 100
        
         # Cost structure (as % of revenue)
-        st.sidebar.subheader('Cost Structure (% of Revenue)')
-        self.sales_marketing_pct = st.sidebar.slider('Sales & Marketing (%)', 0, 100, 30)
-        self.customer_success_pct = st.sidebar.slider('Customer Success (%)', 0, 100, 15)
-        self.admin_pct = st.sidebar.slider('Administration (%)', 0, 100, 10)
-        self.operations_pct = st.sidebar.slider('Operations (%)', 0, 100, 20)
-        self.engineering_pct = st.sidebar.slider('Engineering (%)', 0, 100, 25)
+        # st.sidebar.subheader('Cost Structure (% of Revenue)')
+        # self.sales_marketing_pct = st.sidebar.slider('Sales & Marketing (%)', 0, 100, 30)
+        # self.customer_success_pct = st.sidebar.slider('Customer Success (%)', 0, 100, 15)
+        # self.admin_pct = st.sidebar.slider('Administration (%)', 0, 100, 10)
+        # self.operations_pct = st.sidebar.slider('Operations (%)', 0, 100, 20)
+        # self.engineering_pct = st.sidebar.slider('Engineering (%)', 0, 100, 25)
 
-        # Validate cost structure
-        is_valid_cost_structure = self.validate_cost_structure(
-            self.sales_marketing_pct, self.customer_success_pct, self.admin_pct, self.operations_pct, self.engineering_pct
-        )
+        # # Validate cost structure
+        # is_valid_cost_structure = self.validate_cost_structure(
+        #     self.sales_marketing_pct, self.customer_success_pct, self.admin_pct, self.operations_pct, self.engineering_pct
+        # )
 
-        if not is_valid_cost_structure:
-            st.sidebar.error('Error: Cost Structure percentages must add up to exactly 100%.')
-            st.stop()  # This will halt the execution of the app if the cost structure is invalid
+        # if not is_valid_cost_structure:
+        #     st.sidebar.error('Error: Cost Structure percentages must add up to exactly 100%.')
+        #     st.stop()  # This will halt the execution of the app if the cost structure is invalid
 
     def calculate_projections(self):
         # Convert percentages to decimals
-        self.sales_marketing_pct /= 100
-        self.customer_success_pct /= 100
-        self.admin_pct /= 100
-        self.operations_pct /= 100
-        self.engineering_pct /= 100
+        # self.sales_marketing_pct /= 100
+        # self.customer_success_pct /= 100
+        # self.admin_pct /= 100
+        # self.operations_pct /= 100
+        # self.engineering_pct /= 100
 
         # Calculate projections
-        self.months = 60  # 5 years
         self.customer_base = [self.initial_customers]
         for _ in range(1, self.months):
             new_customers = self.customer_base[-1] * self.monthly_growth_rate
@@ -238,15 +239,15 @@ class SaaSFinancialModel:
         self.annual_revenues = [sum(self.monthly_revenues[i:i+12]) for i in range(0, self.months, 12)]
 
         # Calculate costs
-        self.sales_marketing_costs = [r * self.sales_marketing_pct for r in self.annual_revenues]
-        self.customer_success_costs = [r * self.customer_success_pct for r in self.annual_revenues]
-        self.admin_costs = [r * self.admin_pct for r in self.annual_revenues]
-        self.operations_costs = [r * self.operations_pct for r in self.annual_revenues]
-        self.engineering_costs = [r * self.engineering_pct for r in self.annual_revenues]
+        # self.sales_marketing_costs = [r * self.sales_marketing_pct for r in self.annual_revenues]
+        # self.customer_success_costs = [r * self.customer_success_pct for r in self.annual_revenues]
+        # self.admin_costs = [r * self.admin_pct for r in self.annual_revenues]
+        # self.operations_costs = [r * self.operations_pct for r in self.annual_revenues]
+        # self.engineering_costs = [r * self.engineering_pct for r in self.annual_revenues]
         
         self.cogs = [r * self.cogs_per_customer for r in self.customer_base]
 
-        self.total_costs = [sum(costs) for costs in zip(self.sales_marketing_costs, self.customer_success_costs, self.admin_costs, self.operations_costs, self.engineering_costs, self.cogs)]
+        # self.total_costs = [sum(costs) for costs in zip(self.sales_marketing_costs, self.customer_success_costs, self.admin_costs, self.operations_costs, self.engineering_costs, self.cogs)]
 
     def render_hr_resources(self):
         # HR Resources Table
@@ -479,7 +480,7 @@ class SaaSFinancialModel:
         self.cash_flows = [-self.initial_investment] + self.df['Net Profit'].tolist()
         self.npv = self.calculate_npv(self.cash_flows, self.discount_rate)
         self.irr = self.calculate_irr(self.cash_flows)
-        self.marketshare = self.df['Customers'].iloc[-1] / self.TOTAL_NUMBER_OF_SCHOOLS
+        self.marketshare = self.df['Customers'].iloc[-1] / self.market_size
 
         st.subheader('Financial Indicators')
 
