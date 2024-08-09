@@ -8,8 +8,10 @@ import numpy_financial as npf
 class SaaSFinancialModel:
     TOTAL_NUMBER_OF_SCHOOLS = 25022 # Total number of schools in the UK
     ONE_CS_PER_CUSTOMERS = 50 # One customer support specialist per 20 customers
+    ONE_SALES_REP_PER_CUSTOMERS = 50 # One customer support specialist per 20 customers
     ONE_MANAGER_PER_EMPLOYEES = 10 # One manager per 10 employees
-    NUMBER_OF_SHARES = 300
+    ONE_ENGINEER_PER_CUSTOMER = 100 # One Engineer per 100 customers
+    NUMBER_OF_SHARES = 100
 
     def __init__(self):
         self.df = None
@@ -74,15 +76,15 @@ class SaaSFinancialModel:
     def calculate_hr_resources(self, customer_base, years):
         self.roles = [
             {"title": "CEO", "base_salary": 65000, "start_year": 1, "end_year": 5, "seniority": "Executive"},
-            {"title": "COO", "base_salary": 65000, "start_year": 3, "end_year": 5, "seniority": "Executive"},
-            {"title": "CFO", "base_salary": 60000, "start_year": 2, "end_year": 5, "seniority": "Executive"},
-            {"title": "Sales Manager", "base_salary": 46000, "start_year": 1, "end_year": 5, "seniority": "Senior"},
-            {"title": "Marketing Manager", "base_salary": 46000, "start_year": 2, "end_year": 5, "seniority": "Senior"},
-            {"title": "Marketing Analyst", "base_salary": 35000, "start_year": 2, "end_year": 5, "seniority": "Senior"},
+            {"title": "COO", "base_salary": 48000, "start_year": 3, "end_year": 5, "seniority": "Executive"},
+            {"title": "CFO", "base_salary": 46000, "start_year": 1, "end_year": 5, "seniority": "Executive"},
+            # {"title": "Sales Manager", "base_salary": 30000, "start_year": 2, "end_year": 5, "seniority": "Senior"},
+            # {"title": "Marketing Manager", "base_salary": 30000, "start_year": 2, "end_year": 5, "seniority": "Senior"},
+            {"title": "Marketing Analyst", "base_salary": 26000, "start_year": 2, "end_year": 5, "seniority": "Senior"},
             {"title": "Software Engineer", "base_salary": 46000, "start_year": 1, "end_year": 5, "seniority": "Mid-level"},
-            {"title": "UI/UX Designer", "base_salary": 38000, "start_year": 2, "end_year": 5, "seniority": "Mid-level"},
-            {"title": "Sales Representative", "base_salary": 40000, "start_year": 1, "end_year": 5, "seniority": "Junior"},
-            {"title": "Customer Support Specialist", "base_salary": 26000, "start_year": 1, "end_year": 5, "seniority": "Junior"},
+            {"title": "UI/UX Designer", "base_salary": 26000, "start_year": 2, "end_year": 5, "seniority": "Mid-level"},
+            {"title": "Sales Representative", "base_salary": 26000, "start_year": 1, "end_year": 5, "seniority": "Junior"},
+            {"title": "Customer Support Specialist", "base_salary": 22000, "start_year": 1, "end_year": 5, "seniority": "Junior"},
         ]
         
         self.hr_resources = []
@@ -100,9 +102,19 @@ class SaaSFinancialModel:
                             allocation = 0.5
                         else:
                             allocation = 1.0
+                            
                     elif role["title"] == "Customer Support Specialist":
                         count = max(1, int(customer_count / self.ONE_CS_PER_CUSTOMERS))
                         allocation = 1.0
+                        
+                    elif role["title"] == "Sales Representative":
+                        count = max(1, int(customer_count / self.ONE_SALES_REP_PER_CUSTOMERS))
+                        allocation = 1.0
+                        
+                    elif role["title"] == "Software Engineer":
+                        count = max(1, int(customer_count / self.ONE_ENGINEER_PER_CUSTOMER))
+                        allocation = 1.0
+                        
                     else:
                         base_count = max(1, int(customer_count / 200))
                         count = base_count + (base_count // self.ONE_MANAGER_PER_EMPLOYEES)
@@ -120,7 +132,7 @@ class SaaSFinancialModel:
                         
                         salary *= (1.03 ** (year - 1))  # 3% annual raise
                         labor_charges = salary * 0.15
-                        benefits = salary * 0.20
+                        benefits = salary * 0.05
                         total = (salary + labor_charges + benefits) * allocation
                         self.hr_resources.append({
                             "Role": role["title"],
@@ -146,14 +158,14 @@ class SaaSFinancialModel:
     def calculate_services_costs(years, employee_counts, customer_counts):
         costs = []
         for year, employees, customers in zip(range(1, years + 1), employee_counts, customer_counts):
-            accounting_cost = 12000 * (1 + 0.1 * (year - 1))  # Base 12000/year, 10% increase each year
+            accounting_cost = 2000 * (1 + 0.1 * (year - 1))  # Base 2000/year, 10% increase each year
             legal_cost = 10000 * (1 + 0.05 * (year - 1))  # Base 10000/year, 5% increase each year
             rent_cost = 200 * 12 * employees  # £200/person/month
-            office_materials = 500 * employees  # £500/person/year
+            office_materials = 20 * employees  # £20/person/year
             software_licenses = 50 * employees  # £1000/person/year for various software
             marketing_cost = 5000 * (1 + 0.2 * (year - 1)) + 50 * customers  # Base 5000/year, 20% increase each year, plus £50 per customer
-            misc_cost = 10000 * (1 + 0.05 * (year - 1))  # Base 10000/year, 5% increase each year
-            equipment_cost = 1000 * employees  # £5000/person/year for equipment
+            misc_cost = 2000 * (1 + 0.05 * (year - 1))  # Base 10000/year, 5% increase each year
+            equipment_cost = 1000 * employees  # £1000/employee/year for equipment
             
             total_cost = accounting_cost + legal_cost + rent_cost + office_materials + software_licenses + marketing_cost + misc_cost + equipment_cost
             
@@ -640,12 +652,6 @@ class SaaSFinancialModel:
     def render_5year_PandL_statement(self):
         st.subheader('5-Year Profit and Loss (P&L) Statement')
 
-        # pl_data = {
-        #     'Category': ['Revenue', 'Cost of Goods Sold', 'Gross Profit', 'Operating Expenses', 
-        #                  'Sales & Marketing', 'Engineering', 'Operations', 'Administration', 
-        #                  'HR Costs', 'Additional Costs', 'Total Operating Expenses', 
-        #                  'Operating Income (EBITDA)', 'Tax', 'Net Profit'],
-        # }
         pl_data = {
             'Category': [
                 'Number of Customers',
@@ -696,8 +702,6 @@ class SaaSFinancialModel:
             'Total': '£{:,.0f}',
         }))
         
-        
-
         # Plot the P&L statement
         fig, ax = plt.subplots(figsize=(12, 6))
         pl_df.set_index('Category').drop(columns='Total').loc[['Revenue (Sales)']].T.plot(kind='bar', ax=ax)
@@ -708,6 +712,7 @@ class SaaSFinancialModel:
         st.pyplot(fig)
 
         st.markdown("**Note:** This P&L statement is based on the projections and calculations from the financial model. All figures are in British Pounds (£).")
+
 
 def main():
     model = SaaSFinancialModel()
