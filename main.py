@@ -33,7 +33,7 @@ def calculate_uk_corporation_tax(profit, year):
             marginal_rate = (profit - 50000) / (250000 - 50000) * (0.25 - 0.19) + 0.19
             return base_tax + marginal_profit * marginal_rate
 
-def run_monte_carlo(initial_investment, revenues, costs, iterations=1000):
+def run_monte_carlo(initial_investment, revenues, costs, discount_rate, iterations=1000):
     npv_results = []
     irr_results = []
     
@@ -49,7 +49,7 @@ def run_monte_carlo(initial_investment, revenues, costs, iterations=1000):
         cash_flows = adjusted_ebitda - taxes
         cash_flows = np.insert(cash_flows, 0, -initial_investment)
         
-        npv = calculate_npv(cash_flows, 0.1)  # Assuming 10% discount rate
+        npv = calculate_npv(cash_flows, discount_rate)  # Assuming 10% discount rate
         npv_results.append(npv)
         
         if np.all(cash_flows[1:] >= 0) and np.any(cash_flows[1:] > 0):
@@ -169,7 +169,7 @@ initial_customers = st.sidebar.number_input('Initial number of customers', min_v
 monthly_growth_rate = st.sidebar.slider('Monthly growth rate (%)', 0.0, 10.0, 8.5) / 100
 churn_rate = st.sidebar.slider('Monthly churn rate (%)', 0.0, 5.0, 1.0) / 100
 annual_subscription_price = st.sidebar.number_input('Annual subscription price (£)', min_value=0, value=6000)
-
+discount_rate = st.sidebar.slider('Discount rate (%)', 0.0, 20.0, 10.0) / 100
 # Cost structure (as % of revenue)
 st.sidebar.subheader('Cost Structure (% of Revenue)')
 sales_marketing_pct = st.sidebar.slider('Sales & Marketing (%)', 0, 100, 30)
@@ -462,7 +462,7 @@ st.dataframe(df.style.format({
 
 # Calculate NPV and IRR
 cash_flows = [-initial_investment] + df['Net Profit'].tolist()
-npv = calculate_npv(cash_flows, 0.1)  # Assuming 10% discount rate
+npv = calculate_npv(cash_flows, discount_rate)
 irr = calculate_irr(cash_flows)
 marketshare = df['Customers'].iloc[-1] / TOTAL_NUMBER_OF_SCHOOLS
 
@@ -502,7 +502,7 @@ st.dataframe(growth_rates.style.format({
 
 # Monte Carlo simulation
 st.subheader('Monte Carlo Simulation')
-npv_results, irr_results = run_monte_carlo(initial_investment, np.array(annual_revenues), np.array(df['Total Costs']))
+npv_results, irr_results = run_monte_carlo(initial_investment, np.array(annual_revenues), np.array(df['Total Costs']), discount_rate)
 
 col1, col2 = st.columns(2)
 col1.metric('NPV (Mean)', f'£{np.mean(npv_results):,.0f}')
