@@ -13,7 +13,7 @@ class SaaSFinancialModel:
     def __init__(self):
         self.df = None
         self.hr_df = None
-        self.additional_costs_df = None
+        self.services_costs_df = None
         self.npv_results = None
         self.irr_results = None
      
@@ -415,11 +415,11 @@ class SaaSFinancialModel:
         # employee_counts = edited_hr_df.groupby('Start Year')['Necessary Resources'].sum().tolist()
         self.employee_counts = self.hr_costs_by_role['Total Headcount'].tolist()
         self.customer_counts = [self.customer_base[i] for i in range(11, self.months, 12)]
-        self.additional_costs_df = self.calculate_services_costs(5, self.employee_counts, self.customer_counts)
+        self.services_costs_df = self.calculate_services_costs(5, self.employee_counts, self.customer_counts)
 
     def render_services_costs(self):
         st.subheader('Services Costs')
-        st.dataframe(self.additional_costs_df.style.format({col: '£{:,.0f}' for col in self.additional_costs_df.columns if col != 'Year'}))
+        st.dataframe(self.services_costs_df.style.format({col: '£{:,.0f}' for col in self.services_costs_df.columns if col != 'Year'}))
 
     def render_5years_projection(self):
         # Prepare DataFrame for display
@@ -429,7 +429,7 @@ class SaaSFinancialModel:
             'Revenue': self.annual_revenues,
             'COGS': [self.cogs[i] for i in range(11, self.months, 12)],#[self.customer_base[i] * self.cogs_per_customer for i in range(11, self.months, 12)],
             'HR Costs': self.hr_costs_per_year['Total HR Costs'],
-            'Additional Costs': self.additional_costs_df['Total Additional Costs'],
+            'Additional Costs': self.services_costs_df['Total Additional Costs'],
             # 'Total Costs': self.total_costs,
         })
 
@@ -644,32 +644,26 @@ class SaaSFinancialModel:
                          'Sales & Marketing', 'Engineering', 'Operations', 'Administration', 
                          'HR Costs', 'Additional Costs', 'Total Operating Expenses', 
                          'Operating Income (EBITDA)', 'Tax', 'Net Profit'],
-            
-            'Year 1': [round(self.df['Revenue'].iloc[0], 2), round(self.df['Customers'].iloc[0] * self.cogs_per_customer, 2), round(self.df['Revenue'].iloc[0], 2), 0, 
-                       round(self.sm_costs[0], 2), round(self.engineering_costs[0], 2), round(self.operations_costs[0], 2), round(self.admin_costs[0], 2),
-                       round(self.df['HR Costs'].iloc[0], 2), round(self.df['Additional Costs'].iloc[0], 2), round(self.df['Total Costs'].iloc[0], 2),
-                       round(self.df['EBITDA'].iloc[0], 2), round(self.df['Tax'].iloc[0], 2), round(self.df['Net Profit'].iloc[0], 2)],
-            
-            'Year 2': [round(self.df['Revenue'].iloc[1], 2), round(self.df['Customers'].iloc[1] * self.cogs_per_customer, 2), round(self.df['Revenue'].iloc[1], 2), 0,
-                       round(self.sm_costs[1], 2), round(self.engineering_costs[1], 2), round(self.operations_costs[1], 2), round(self.admin_costs[1], 2),
-                       round(self.df['HR Costs'].iloc[1], 2), round(self.df['Additional Costs'].iloc[1], 2), round(self.df['Total Costs'].iloc[1], 2),
-                       round(self.df['EBITDA'].iloc[1], 2), round(self.df['Tax'].iloc[1], 2), round(self.df['Net Profit'].iloc[1], 2)],
-            
-            'Year 3': [round(self.df['Revenue'].iloc[2], 2), round(self.df['Customers'].iloc[2] * self.cogs_per_customer, 2), round(self.df['Revenue'].iloc[2], 2), 0,
-                       round(self.sm_costs[2], 2), round(self.engineering_costs[2], 2), round(self.operations_costs[2], 2), round(self.admin_costs[2], 2),
-                       round(self.df['HR Costs'].iloc[2], 2), round(self.df['Additional Costs'].iloc[2], 2), round(self.df['Total Costs'].iloc[2], 2),
-                       round(self.df['EBITDA'].iloc[2], 2), round(self.df['Tax'].iloc[2], 2), round(self.df['Net Profit'].iloc[2], 2)],
-            
-            'Year 4': [round(self.df['Revenue'].iloc[3], 2), round(self.df['Customers'].iloc[3] * self.cogs_per_customer, 2), round(self.df['Revenue'].iloc[3], 2), 0,
-                       round(self.sm_costs[3], 2), round(self.engineering_costs[3], 2), round(self.operations_costs[3], 2), round(self.admin_costs[3], 2),
-                       round(self.df['HR Costs'].iloc[3], 2), round(self.df['Additional Costs'].iloc[3], 2), round(self.df['Total Costs'].iloc[3], 2),
-                       round(self.df['EBITDA'].iloc[3], 2), round(self.df['Tax'].iloc[3], 2), round(self.df['Net Profit'].iloc[3], 2)],
-        
-            'Year 5': [round(self.df['Revenue'].iloc[4], 2), round(self.df['Customers'].iloc[4] * self.cogs_per_customer, 2), round(self.df['Revenue'].iloc[4], 2), 0,
-                       round(self.sm_costs[4], 2), round(self.engineering_costs[4], 2), round(self.operations_costs[4], 2), round(self.admin_costs[4], 2),
-                       round(self.df['HR Costs'].iloc[4], 2), round(self.df['Additional Costs'].iloc[4], 2), round(self.df['Total Costs'].iloc[4], 2),
-                       round(self.df['EBITDA'].iloc[4], 2), round(self.df['Tax'].iloc[4], 2), round(self.df['Net Profit'].iloc[4], 2)]
         }
+        
+        for i in range(5):
+            year_data = [
+                round(self.df['Revenue'].iloc[i], 2),
+                round(self.df['Customers'].iloc[i] * self.cogs_per_customer, 2),
+                round(self.df['Revenue'].iloc[i], 2),
+                round(self.services_costs_df['Total Additional Costs'].iloc[i], 2),
+                round(self.sm_costs[i], 2),
+                round(self.engineering_costs[i], 2),
+                round(self.operations_costs[i], 2),
+                round(self.admin_costs[i], 2),
+                round(self.df['HR Costs'].iloc[i], 2),
+                round(self.df['Additional Costs'].iloc[i], 2),
+                round(self.df['Total Costs'].iloc[i], 2),
+                round(self.df['EBITDA'].iloc[i], 2),
+                round(self.df['Tax'].iloc[i], 2),
+                round(self.df['Net Profit'].iloc[i], 2)
+            ]
+            pl_data[f'Year {i+1}'] = year_data
 
         pl_df = pd.DataFrame(pl_data)
         pl_df["Total"] = pl_df.sum(axis=1, numeric_only=True)
