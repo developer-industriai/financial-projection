@@ -9,6 +9,7 @@ class SaaSFinancialModel:
     TOTAL_NUMBER_OF_SCHOOLS = 25022 # Total number of schools in the UK
     ONE_CS_PER_CUSTOMERS = 50 # One customer support specialist per 20 customers
     ONE_MANAGER_PER_EMPLOYEES = 10 # One manager per 10 employees
+    NUMBER_OF_SHARES = 300
 
     def __init__(self):
         self.df = None
@@ -639,30 +640,46 @@ class SaaSFinancialModel:
     def render_5year_PandL_statement(self):
         st.subheader('5-Year Profit and Loss (P&L) Statement')
 
+        # pl_data = {
+        #     'Category': ['Revenue', 'Cost of Goods Sold', 'Gross Profit', 'Operating Expenses', 
+        #                  'Sales & Marketing', 'Engineering', 'Operations', 'Administration', 
+        #                  'HR Costs', 'Additional Costs', 'Total Operating Expenses', 
+        #                  'Operating Income (EBITDA)', 'Tax', 'Net Profit'],
+        # }
         pl_data = {
-            'Category': ['Revenue', 'Cost of Goods Sold', 'Gross Profit', 'Operating Expenses', 
-                         'Sales & Marketing', 'Engineering', 'Operations', 'Administration', 
-                         'HR Costs', 'Additional Costs', 'Total Operating Expenses', 
-                         'Operating Income (EBITDA)', 'Tax', 'Net Profit'],
+            'Category': [
+                'Revenue (Sales)',
+                'Cost of Goods Sold (COGS)',
+                'Gross Profit',
+                'Operating Expenses (OPEX)',
+                'Operating Income (Operating Profit or EBIT)',
+                'Other Income and Expenses',
+                'Earnings Before Interest and Taxes (EBIT)',
+                # 'Interest Expense',
+                # 'Earnings Before Tax (EBT)',
+                'Taxes',
+                'Net Income (Net Profit or Net Earnings)',
+                'Earnings Per Share (EPS)'
+            ]
         }
-        
         for i in range(5):
             year_data = [
-                round(self.df['Revenue'].iloc[i], 2),
-                round(self.df['Customers'].iloc[i] * self.cogs_per_customer, 2),
-                round(self.df['Revenue'].iloc[i], 2),
-                round(self.services_costs_df['Total Additional Costs'].iloc[i], 2),
-                round(self.sm_costs[i], 2),
-                round(self.engineering_costs[i], 2),
-                round(self.operations_costs[i], 2),
-                round(self.admin_costs[i], 2),
-                round(self.df['HR Costs'].iloc[i], 2),
-                round(self.df['Additional Costs'].iloc[i], 2),
-                round(self.df['Total Costs'].iloc[i], 2),
-                round(self.df['EBITDA'].iloc[i], 2),
-                round(self.df['Tax'].iloc[i], 2),
-                round(self.df['Net Profit'].iloc[i], 2)
+                round(self.df['Revenue'].iloc[i], 2), # Revenue
+                round(self.df['Customers'].iloc[i] * self.cogs_per_customer, 2), # COGS
+                0, # Gross Profit
+                round(self.services_costs_df['Total Additional Costs'].iloc[i], 2) +  round(self.df['HR Costs'].iloc[i], 2), # Operating Expenses
+                0, # Operating Income
+                0, # Other Income and Expenses
+                round(self.df['EBITDA'].iloc[i], 2),  # EBIT
+                # 0, # Interest Expense
+                round(self.df['Tax'].iloc[i], 2), # Taxes
+                round(self.df['Net Profit'].iloc[i], 2), # Net Profit
+                round(self.df['Net Profit'].iloc[i], 2) / self.NUMBER_OF_SHARES # EPS
             ]
+            
+            year_data[2] = year_data[0] - year_data[1]  # Gross Profit
+            year_data[4] = year_data[2] - year_data[3]
+            
             pl_data[f'Year {i+1}'] = year_data
 
         pl_df = pd.DataFrame(pl_data)
@@ -679,7 +696,7 @@ class SaaSFinancialModel:
 
         # Plot the P&L statement
         fig, ax = plt.subplots(figsize=(12, 6))
-        pl_df.set_index('Category').drop(columns='Total').loc[['Revenue']].T.plot(kind='bar', ax=ax)
+        pl_df.set_index('Category').drop(columns='Total').loc[['Revenue (Sales)']].T.plot(kind='bar', ax=ax)
         ax.set_ylabel('Amount (£)')
         ax.set_title('Revenue Over 5 Years')
         plt.xticks(rotation=0)
