@@ -167,7 +167,7 @@ class SaaSFinancialModel:
                 'Advertisement/Media': marketing_cost,
                 'Miscellaneous': misc_cost,
                 'Equipment': equipment_cost,
-                'Total Additional Costs': total_cost
+                'Total Services Costs': total_cost
             })
         
         return pd.DataFrame(costs)
@@ -430,7 +430,7 @@ class SaaSFinancialModel:
             'Revenue': self.annual_revenues,
             'COGS': [self.cogs[i] for i in range(11, self.months, 12)],#[self.customer_base[i] * self.cogs_per_customer for i in range(11, self.months, 12)],
             'HR Costs': self.hr_costs_per_year['Total HR Costs'],
-            'Additional Costs': self.services_costs_df['Total Additional Costs'],
+            'Additional Costs': self.services_costs_df['Total Services Costs'],
             # 'Total Costs': self.total_costs,
         })
 
@@ -648,6 +648,7 @@ class SaaSFinancialModel:
         # }
         pl_data = {
             'Category': [
+                'Number of Customers',
                 'Revenue (Sales)',
                 'Cost of Goods Sold (COGS)',
                 'Gross Profit',
@@ -664,21 +665,22 @@ class SaaSFinancialModel:
         }
         for i in range(5):
             year_data = [
+                int(round(self.df['Customers'].iloc[i], 0)), # Number of Customers
                 round(self.df['Revenue'].iloc[i], 2), # Revenue
-                round(self.df['Customers'].iloc[i] * self.cogs_per_customer, 2), # COGS
+                -round(self.df['Customers'].iloc[i], 0) * self.cogs_per_customer, # COGS
                 0, # Gross Profit
-                round(self.services_costs_df['Total Additional Costs'].iloc[i], 2) +  round(self.df['HR Costs'].iloc[i], 2), # Operating Expenses
+                -(round(self.services_costs_df['Total Services Costs'].iloc[i], 2) +  round(self.df['HR Costs'].iloc[i], 2)), # Operating Expenses
                 0, # Operating Income
                 0, # Other Income and Expenses
                 round(self.df['EBITDA'].iloc[i], 2),  # EBIT
                 # 0, # Interest Expense
-                round(self.df['Tax'].iloc[i], 2), # Taxes
+                -round(self.df['Tax'].iloc[i], 2), # Taxes
                 round(self.df['Net Profit'].iloc[i], 2), # Net Profit
                 round(self.df['Net Profit'].iloc[i], 2) / self.NUMBER_OF_SHARES # EPS
             ]
             
-            year_data[2] = year_data[0] - year_data[1]  # Gross Profit
-            year_data[4] = year_data[2] - year_data[3]
+            year_data[3] = year_data[1] + year_data[2]  # Gross Profit
+            year_data[5] = year_data[3] + year_data[4]
             
             pl_data[f'Year {i+1}'] = year_data
 
@@ -686,13 +688,15 @@ class SaaSFinancialModel:
         pl_df["Total"] = pl_df.sum(axis=1, numeric_only=True)
 
         st.dataframe(pl_df.style.format({
-            'Year 1': '£{:,.0f}',
-            'Year 2': '£{:,.0f}',
-            'Year 3': '£{:,.0f}',
-            'Year 4': '£{:,.0f}',
-            'Year 5': '£{:,.0f}',
+            'Year 1': '{:,.0f}',
+            'Year 2': '{:,.0f}',
+            'Year 3': '{:,.0f}',
+            'Year 4': '{:,.0f}',
+            'Year 5': '{:,.0f}',
             'Total': '£{:,.0f}',
         }))
+        
+        
 
         # Plot the P&L statement
         fig, ax = plt.subplots(figsize=(12, 6))
@@ -714,8 +718,8 @@ def main():
     model.render_5years_projection()
     model.render_growth_rates()
     model.render_financial_indicators()
-    model.render_profit_loss()
-    model.render_anual_budget()
+    # model.render_profit_loss()
+    # model.render_anual_budget()
     model.render_5year_PandL_statement()
     
 if __name__ == "__main__":
