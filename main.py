@@ -195,9 +195,9 @@ class SaaSFinancialModel:
         st.sidebar.header('Input Parameters')
         self.initial_investment = st.sidebar.number_input('Initial Investment (£)', min_value=0, value=500000, step=10000)
         self.initial_customers = st.sidebar.number_input('Initial number of customers', min_value=1, value=10)
-        self.monthly_growth_rate = st.sidebar.slider('Monthly growth rate (%)', 0.0, 10.0, 8.5) / 100
+        self.monthly_growth_rate = st.sidebar.slider('Monthly growth rate (%)', 0.0, 10.0, 9.2) / 100
         self.churn_rate = st.sidebar.slider('Monthly churn rate (%)', 0.0, 5.0, 1.0) / 100
-        self.annual_subscription_price = st.sidebar.number_input('Annual subscription price (£)', min_value=0, value=6000)
+        self.annual_subscription_price = st.sidebar.number_input('Annual subscription price (£)', min_value=0, value=10000)
         self.cogs_per_customer = st.sidebar.number_input('Cost of Goods Sold (COGS) per customer (£)', min_value=0, value=500)
         self.discount_rate = st.sidebar.slider('Discount rate (%)', 0.0, 20.0, 10.0) / 100
        
