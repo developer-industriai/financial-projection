@@ -176,7 +176,7 @@ class SaaSFinancialModel:
         return (end_value / start_value) ** (1 / num_years) - 1
 
     # RENDERING FUNCTIONS
-    def render_sidebar(self):
+    def render_sidebar_parameters(self):
         st.title('UK SaaS Financial Projection for Schools')
 
         st.sidebar.header('Input Parameters')
@@ -185,7 +185,9 @@ class SaaSFinancialModel:
         self.monthly_growth_rate = st.sidebar.slider('Monthly growth rate (%)', 0.0, 10.0, 8.5) / 100
         self.churn_rate = st.sidebar.slider('Monthly churn rate (%)', 0.0, 5.0, 1.0) / 100
         self.annual_subscription_price = st.sidebar.number_input('Annual subscription price (£)', min_value=0, value=6000)
+        self.cogs_per_customer = st.sidebar.number_input('Cost of Goods Sold (COGS) per customer (£)', min_value=0, value=500)
         self.discount_rate = st.sidebar.slider('Discount rate (%)', 0.0, 20.0, 10.0) / 100
+       
         # Cost structure (as % of revenue)
         st.sidebar.subheader('Cost Structure (% of Revenue)')
         self.sales_marketing_pct = st.sidebar.slider('Sales & Marketing (%)', 0, 100, 30)
@@ -228,8 +230,10 @@ class SaaSFinancialModel:
         self.admin_costs = [r * self.admin_pct for r in self.annual_revenues]
         self.operations_costs = [r * self.operations_pct for r in self.annual_revenues]
         self.engineering_costs = [r * self.engineering_pct for r in self.annual_revenues]
+        
+        self.cogs = [r * self.cogs_per_customer for r in self.customer_base]
 
-        self.total_costs = [sum(costs) for costs in zip(self.sales_marketing_costs, self.customer_success_costs, self.admin_costs, self.operations_costs, self.engineering_costs)]
+        self.total_costs = [sum(costs) for costs in zip(self.sales_marketing_costs, self.customer_success_costs, self.admin_costs, self.operations_costs, self.engineering_costs, self.cogs)]
 
     def render_hr_resources(self):
         # HR Resources Table
@@ -423,15 +427,14 @@ class SaaSFinancialModel:
             'Year': range(1, 6),
             'Customers': [self.customer_base[i] for i in range(11, self.months, 12)],
             'Revenue': self.annual_revenues,
-            'Total Costs': self.total_costs,
+            'COGS': [self.cogs[i] for i in range(11, self.months, 12)],#[self.customer_base[i] * self.cogs_per_customer for i in range(11, self.months, 12)],
             'HR Costs': self.hr_costs_per_year['Total HR Costs'],
+            'Additional Costs': self.additional_costs_df['Total Additional Costs'],
+            # 'Total Costs': self.total_costs,
         })
 
+        self.df['Total Costs'] = self.df['COGS'] + self.df['HR Costs'] + self.df['Additional Costs']
         # Calculate EBITDA, Tax, and Net Profit
-        self.df['HR Costs'] = self.hr_costs_per_year['Total HR Costs']
-        self.df['Additional Costs'] = self.additional_costs_df['Total Additional Costs']
-        self.df['Total Costs'] = self.df['HR Costs'] + self.df['Additional Costs']
-
         self.df['EBITDA'] = self.df['Revenue'] - self.df['Total Costs']
         self.df['Tax'] = self.df['EBITDA'].apply(lambda x: self.calculate_uk_corporation_tax(x, 2023))
 
@@ -449,6 +452,7 @@ class SaaSFinancialModel:
         st.dataframe(self.df.style.format({
             'Customers': '{:.0f}',
             'Revenue': '£{:,.0f}',
+            'COGS': '£{:,.0f}',
             'HR Costs': '£{:,.0f}',
             'Total Costs': '£{:,.0f}',
             'Additional Costs': '£{:,.0f}',
@@ -641,27 +645,27 @@ class SaaSFinancialModel:
                          'HR Costs', 'Additional Costs', 'Total Operating Expenses', 
                          'Operating Income (EBITDA)', 'Tax', 'Net Profit'],
             
-            'Year 1': [round(self.df['Revenue'].iloc[0], 2), 0, round(self.df['Revenue'].iloc[0], 2), 0, 
+            'Year 1': [round(self.df['Revenue'].iloc[0], 2), round(self.df['Customers'].iloc[0] * self.cogs_per_customer, 2), round(self.df['Revenue'].iloc[0], 2), 0, 
                        round(self.sm_costs[0], 2), round(self.engineering_costs[0], 2), round(self.operations_costs[0], 2), round(self.admin_costs[0], 2),
                        round(self.df['HR Costs'].iloc[0], 2), round(self.df['Additional Costs'].iloc[0], 2), round(self.df['Total Costs'].iloc[0], 2),
                        round(self.df['EBITDA'].iloc[0], 2), round(self.df['Tax'].iloc[0], 2), round(self.df['Net Profit'].iloc[0], 2)],
             
-            'Year 2': [round(self.df['Revenue'].iloc[1], 2), 0, round(self.df['Revenue'].iloc[1], 2), 0,
+            'Year 2': [round(self.df['Revenue'].iloc[1], 2), round(self.df['Customers'].iloc[1] * self.cogs_per_customer, 2), round(self.df['Revenue'].iloc[1], 2), 0,
                        round(self.sm_costs[1], 2), round(self.engineering_costs[1], 2), round(self.operations_costs[1], 2), round(self.admin_costs[1], 2),
                        round(self.df['HR Costs'].iloc[1], 2), round(self.df['Additional Costs'].iloc[1], 2), round(self.df['Total Costs'].iloc[1], 2),
                        round(self.df['EBITDA'].iloc[1], 2), round(self.df['Tax'].iloc[1], 2), round(self.df['Net Profit'].iloc[1], 2)],
             
-            'Year 3': [round(self.df['Revenue'].iloc[2], 2), 0, round(self.df['Revenue'].iloc[2], 2), 0,
+            'Year 3': [round(self.df['Revenue'].iloc[2], 2), round(self.df['Customers'].iloc[2] * self.cogs_per_customer, 2), round(self.df['Revenue'].iloc[2], 2), 0,
                        round(self.sm_costs[2], 2), round(self.engineering_costs[2], 2), round(self.operations_costs[2], 2), round(self.admin_costs[2], 2),
                        round(self.df['HR Costs'].iloc[2], 2), round(self.df['Additional Costs'].iloc[2], 2), round(self.df['Total Costs'].iloc[2], 2),
                        round(self.df['EBITDA'].iloc[2], 2), round(self.df['Tax'].iloc[2], 2), round(self.df['Net Profit'].iloc[2], 2)],
             
-            'Year 4': [round(self.df['Revenue'].iloc[3], 2), 0, round(self.df['Revenue'].iloc[3], 2), 0,
+            'Year 4': [round(self.df['Revenue'].iloc[3], 2), round(self.df['Customers'].iloc[3] * self.cogs_per_customer, 2), round(self.df['Revenue'].iloc[3], 2), 0,
                        round(self.sm_costs[3], 2), round(self.engineering_costs[3], 2), round(self.operations_costs[3], 2), round(self.admin_costs[3], 2),
                        round(self.df['HR Costs'].iloc[3], 2), round(self.df['Additional Costs'].iloc[3], 2), round(self.df['Total Costs'].iloc[3], 2),
                        round(self.df['EBITDA'].iloc[3], 2), round(self.df['Tax'].iloc[3], 2), round(self.df['Net Profit'].iloc[3], 2)],
         
-            'Year 5': [round(self.df['Revenue'].iloc[4], 2), 0, round(self.df['Revenue'].iloc[4], 2), 0,
+            'Year 5': [round(self.df['Revenue'].iloc[4], 2), round(self.df['Customers'].iloc[4] * self.cogs_per_customer, 2), round(self.df['Revenue'].iloc[4], 2), 0,
                        round(self.sm_costs[4], 2), round(self.engineering_costs[4], 2), round(self.operations_costs[4], 2), round(self.admin_costs[4], 2),
                        round(self.df['HR Costs'].iloc[4], 2), round(self.df['Additional Costs'].iloc[4], 2), round(self.df['Total Costs'].iloc[4], 2),
                        round(self.df['EBITDA'].iloc[4], 2), round(self.df['Tax'].iloc[4], 2), round(self.df['Net Profit'].iloc[4], 2)]
@@ -692,7 +696,7 @@ class SaaSFinancialModel:
 
 def main():
     model = SaaSFinancialModel()
-    model.render_sidebar()
+    model.render_sidebar_parameters()
     model.calculate_projections()
     model.render_hr_resources()
     model.render_services_costs()
