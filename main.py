@@ -197,7 +197,10 @@ class SaaSFinancialModel:
         self.market_size = st.sidebar.number_input('Market Size  (number of customers)', min_value=0, value=self.TOTAL_NUMBER_OF_SCHOOLS, step=10000)
         self.initial_investment = st.sidebar.number_input('Initial Investment (£)', min_value=0, value=500000, step=10000)
         self.initial_customers = st.sidebar.number_input('Initial number of customers', min_value=1, value=10)
-        self.monthly_growth_rate = st.sidebar.slider('Monthly growth rate (%)', 0.0, 10.0, 9.2) / 100
+        # self.months = st.sidebar.number_input('Number of Months', min_value=1, value=60, max_value=120)
+        # Calculate the maximum monthly growth rate based on the market size, and 5 years period
+        self.max_monthly_growth_rate = ((self.market_size / self.initial_customers) ** (1 / self.months) - 1) * 100
+        self.monthly_growth_rate = st.sidebar.slider('Monthly growth rate (%)', min_value=0.0,  max_value=self.max_monthly_growth_rate, value=9.2) / 100
         self.churn_rate = st.sidebar.slider('Monthly churn rate (%)', 0.0, 5.0, 1.0) / 100
         self.annual_subscription_price = st.sidebar.number_input('Annual subscription price (£)', min_value=0, value=10000)
         self.cogs_per_customer = st.sidebar.number_input('Cost of Goods Sold (COGS) per customer (£)', min_value=0, value=500)
@@ -491,19 +494,19 @@ class SaaSFinancialModel:
         self.customer_cagr = self.calculate_cagr(self.df['Customers'].iloc[0], self.df['Customers'].iloc[-1], 5)
         self.revenue_cagr = self.calculate_cagr(self.df['Revenue'].iloc[0], self.df['Revenue'].iloc[-1], 5)
 
+
         col1, col2 = st.columns(2)
-        col1.metric('Net Present Value (NPV)', f'£{self.npv:,.0f}')
+        col1.metric('Total Revenue', f'£{self.df["Revenue"].sum():,.0f}')
         col2.metric('Internal Rate of Return (IRR)', f'{self.irr:.2%}')
 
-        col1, col2 = st.columns(2)
-        col1.metric('Monthly Growth Rate', f'{self.monthly_growth:.2f}%')
+        col1.metric('Net Present Value (NPV)', f'£{self.npv:,.0f}')
         col2.metric('Customer CAGR (5 years)', f'{self.customer_cagr:.2%}')
 
-        col1, col2 = st.columns(2)
-        col1.metric('Revenue CAGR (5 years)', f'{self.revenue_cagr:.2%}')
+        col1.metric('Monthly Growth Rate', f'{self.monthly_growth:.2f}%')
         col2.metric('Number of Customers (5 years)', int(self.df['Customers'].iloc[-1]))
 
-        col1.metric('Market Share (5 years)', f'{self.marketshare:.2%}')
+        col1.metric('Revenue CAGR (5 years)', f'{self.revenue_cagr:.2%}')
+        col2.metric('Market Share (5 years)', f'{self.marketshare:.2%}')
 
     def render_growth_rates(self):
         # Growth rates table
