@@ -10,3 +10,9 @@ The tax and labour charges are based on the UK legislation, consider a limited c
 ## Author:
 
 Daniel Melo: [LinkedIn](https://www.linkedin.com/in/industriai/)
+
+
+## License
+This project is licensed under the terms of the GNU General Public License v3.0. You are free to redistribute and/or modify it under these terms.
+
+Please refer to the [LICENSE](./LICENSE) file for the complete license text and further details.
