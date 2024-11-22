@@ -6,3 +6,7 @@ scikit-learn
 scipy
 numpy_financial
 mpld3
+langchain
+langchain_community
+openai
+openpyxl
