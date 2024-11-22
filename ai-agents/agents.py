@@ -5,6 +5,8 @@ from langchain.prompts import PromptTemplate
 import pandas as pd
 from datetime import datetime
 import re
+from openpyxl.styles import Font
+
 
 # Initialize OpenAI LLM
 llm = OpenAI(api_key=os.getenv('OPENAI_API_KEY'), temperature=0.5)
@@ -19,9 +21,30 @@ revenue_prompt = PromptTemplate(
     - Growth Rate: {growth_rate}
     - Prices: {prices}
     Output should include segmented projections for each product and each business model, showing year-by-year breakdowns.
+    Please provide detailed customer numbers per year in your analysis.
+    Format your response to clearly separate customer numbers and revenue figures.
     """
 )
 revenue_chain = LLMChain(llm=llm, prompt=revenue_prompt, output_key="revenue_projection")
+
+cogs_prompt = PromptTemplate(
+    input_variables=["revenue_projection", "customers_per_device", "device_cost"],
+    template="""
+    Calculate Cost of Goods Sold (COGS) based on the following:
+    - Revenue Projections and Customer Data: {revenue_projection}
+    - IoT Device Requirements: 1 device per {customers_per_device} customers
+    - Device Cost: £{device_cost} per device
+    
+    Please calculate:
+    1. Number of devices needed per year based on customer growth
+    2. Total device costs per year
+    3. Other direct costs (assume 40% of revenue for product costs and 20% for service delivery)
+    4. Total COGS including both device costs and other direct costs
+    
+    Format your response with clear year-by-year breakdowns for each cost component.
+    """
+)
+cogs_chain = LLMChain(llm=llm, prompt=cogs_prompt, output_key="cogs_projection")
 
 hr_costs_prompt = PromptTemplate(
     input_variables=["employee_roles", "salaries", "hiring_schedule"],
@@ -84,6 +107,7 @@ other_costs_chain = LLMChain(llm=llm, prompt=other_costs_prompt, output_key="oth
 financial_forecast_chain = SequentialChain(
     chains=[
         revenue_chain,
+        cogs_chain,
         hr_costs_chain,
         services_costs_chain,
         operational_expenses_chain,
@@ -92,6 +116,7 @@ financial_forecast_chain = SequentialChain(
     ],
     input_variables=[
         "products", "business_models", "growth_rate", "prices",
+        "customers_per_device", "device_cost",
         "employee_roles", "salaries", "hiring_schedule",
         "services", "annual_costs",
         "categories", "monthly_expenses",
@@ -100,6 +125,7 @@ financial_forecast_chain = SequentialChain(
     ],
     output_variables=[
         "revenue_projection",
+        "cogs_projection",
         "hr_costs",
         "services_costs",
         "operational_expenses",
@@ -113,19 +139,21 @@ input_data = {
     "products": "Product A, Product B",
     "business_models": "Subscription, One-time Purchase",
     "growth_rate": "10% annually",
-    "prices": "Product A: $20, Product B: $50",
+    "prices": "Product A: £20, Product B: £50",
+    "customers_per_device": "10",  # New parameter: customers per IoT device
+    "device_cost": "30",  # New parameter: cost per IoT device
     "employee_roles": "Developer, Sales, Manager",
-    "salaries": "$80,000, $60,000, $100,000",
+    "salaries": "£80,000, £60,000, £100,000",
     "hiring_schedule": "Q1: 2 Developers, Q2: 1 Sales",
     "services": "AWS, CRM Software, Marketing Tools",
-    "annual_costs": "$10,000, $5,000, $8,000",
+    "annual_costs": "£10,000, £5,000, £8,000",
     "categories": "Rent, Utilities, Miscellaneous",
-    "monthly_expenses": "$5,000, $1,500, $1,000",
+    "monthly_expenses": "£5,000, £1,500, £1,000",
     "equipment": "Servers, Computers, Office Furniture",
-    "costs": "$30,000, $20,000, $10,000",
+    "costs": "£30,000, £20,000, £10,000",
     "depreciation": "5 years",
     "miscellaneous_items": "Travel, Training",
-    "annual_estimates": "$5,000, $2,000"
+    "annual_estimates": "£5,000, £2,000"
 }
 
 # Execute the chain
@@ -137,11 +165,13 @@ results = financial_forecast_chain(input_data)
 #     print(f"\n{key.replace('_', ' ').title()}:")
 #     print(value)
     
-
 def extract_number(text):
     """Extract numerical value from text containing currency and calculations."""
+    if isinstance(text, (int, float)):
+        return float(text)
+    
     # Remove currency symbols and commas
-    text = text.replace('$', '').replace('£', '').replace(',', '')
+    text = str(text).replace('$', '').replace('£', '').replace(',', '')
     
     # Try to find a simple number first
     number_match = re.search(r'\d+\.?\d*', text)
@@ -159,59 +189,98 @@ def extract_number(text):
     
     return 0.0
 
+def parse_projection_data(text, prefix):
+    """Parse year-by-year data from projection text."""
+    years_data = [0] * 5  # Initialize 5 years of data
+    lines = text.split('\n')
+    for line in lines:
+        if prefix in line.lower() and ('£' in line or '$' in line):
+            # Try to find year indicators and values
+            year_matches = re.finditer(r'year\s*(\d+)[:\s]*[£$]?\s*([\d,]+\.?\d*)', line.lower())
+            for match in year_matches:
+                year_idx = int(match.group(1)) - 1
+                if 0 <= year_idx < 5:
+                    years_data[year_idx] = extract_number(match.group(2))
+    return years_data
+
 def process_financial_forecast(results):
-    pl_data = {
-        'Category': [],
-        'Amount': []
+    # Initialize DataFrame structure
+    columns = ['Category', 'Year 1', 'Year 2', 'Year 3', 'Year 4', 'Year 5']
+    
+    # Parse revenue and customer data
+    revenue_data = parse_projection_data(results['revenue_projection'], 'revenue')
+    customers_data = parse_projection_data(results['revenue_projection'], 'customers')
+    
+    # Parse COGS data
+    cogs_data = parse_projection_data(results['cogs_projection'], 'total cogs')
+    device_costs = parse_projection_data(results['cogs_projection'], 'device costs')
+    product_costs = parse_projection_data(results['cogs_projection'], 'product costs')
+    service_costs = parse_projection_data(results['cogs_projection'], 'service costs')
+    
+    # Create P&L structure
+    pl_structure = {
+        'Revenue': {
+            'Product Sales': [r * 0.7 for r in revenue_data],  # Assuming 70% product revenue
+            'Service Revenue': [r * 0.3 for r in revenue_data]  # Assuming 30% service revenue
+        },
+        'Cost_of_Goods_Sold': {
+            'Product Costs': product_costs,
+            'Service Costs': service_costs,
+            'IoT Device Costs': device_costs
+        }
     }
+
+    rows = []
     
-    # Process Revenue
-    total_revenue = 0
-    revenue_lines = results['revenue_projection'].split('\n')
-    for line in revenue_lines:
-        if ':' in line and ('$' in line or '£' in line):
-            amount = extract_number(line.split(':')[1])
-            if amount > 0:
-                total_revenue += amount
-                pl_data['Category'].append('Revenue - ' + line.split(':')[0].strip())
-                pl_data['Amount'].append(amount)
+    # Revenue section
+    rows.append(['Revenue', '', '', '', '', ''])
+    for category, values in pl_structure['Revenue'].items():
+        rows.append([category] + [f'£{val:,.0f}' for val in values])
+    total_revenue = [sum(x) for x in zip(*pl_structure['Revenue'].values())]
+    rows.append(['Total Revenue'] + [f'£{val:,.0f}' for val in total_revenue])
     
-    # Add Total Revenue
-    pl_data['Category'].append('Total Revenue')
-    pl_data['Amount'].append(total_revenue)
+    # COGS section
+    rows.append(['Cost of Goods Sold (COGS)', '', '', '', '', ''])
+    for category, values in pl_structure['Cost_of_Goods_Sold'].items():
+        rows.append([category] + [f'£{val:,.0f}' for val in values])
+    total_cogs = [sum(x) for x in zip(*pl_structure['Cost_of_Goods_Sold'].values())]
+    rows.append(['Total COGS'] + [f'£{val:,.0f}' for val in total_cogs])
     
-    # Process Costs
-    total_costs = 0
+    # Gross Profit
+    gross_profit = [r - c for r, c in zip(total_revenue, total_cogs)]
+    rows.append(['Gross Profit'] + [f'£{val:,.0f}' for val in gross_profit])
     
-    # Process each cost category
-    cost_mappings = {
-        'hr_costs': 'Staff Costs',
-        'services_costs': 'Services & Software',
-        'operational_expenses': 'Operating Expenses',
-        'infrastructure_costs': 'Infrastructure & Equipment',
-        'other_costs': 'Other Expenses'
-    }
+    # Parse and add operating expenses
+    operating_expenses = parse_projection_data(results['operational_expenses'], 'total')
+    marketing_sales = parse_projection_data(results['operational_expenses'], 'marketing')
+    rd_expenses = parse_projection_data(results['operational_expenses'], 'r&d')
+    admin_costs = parse_projection_data(results['operational_expenses'], 'admin')
     
-    for key, category in cost_mappings.items():
-        amount = extract_number(results[key])
-        pl_data['Category'].append(category)
-        pl_data['Amount'].append(amount)
-        total_costs += amount
+    rows.append(['Operating Expenses', '', '', '', '', ''])
+    rows.append(['Marketing & Sales'] + [f'£{val:,.0f}' for val in marketing_sales])
+    rows.append(['R&D Expenses'] + [f'£{val:,.0f}' for val in rd_expenses])
+    rows.append(['Administrative Costs'] + [f'£{val:,.0f}' for val in admin_costs])
+    rows.append(['Total Operating Expenses'] + [f'£{val:,.0f}' for val in operating_expenses])
     
-    # Add Total Costs
-    pl_data['Category'].append('Total Costs')
-    pl_data['Amount'].append(total_costs)
+    # Operating Profit (EBIT)
+    operating_profit = [g - o for g, o in zip(gross_profit, operating_expenses)]
+    rows.append(['Operating Profit (EBIT)'] + [f'£{val:,.0f}' for val in operating_profit])
     
-    # Calculate Gross Profit
-    gross_profit = total_revenue - total_costs
-    pl_data['Category'].append('Gross Profit')
-    pl_data['Amount'].append(gross_profit)
+    # Other Income/Expenses
+    interest_expenses = [5000, 10000, 10000, 10000, 10000]  # Example values
+    tax_rate = 0.20
+    tax_expenses = [max(0, op * tax_rate) for op in operating_profit]
+    
+    rows.append(['Other Income/Expenses', '', '', '', '', ''])
+    rows.append(['Interest Expenses'] + [f'£{val:,.0f}' for val in interest_expenses])
+    rows.append(['Tax (20%)'] + [f'£{val:,.0f}' for val in tax_expenses])
+    
+    # Net Profit
+    net_profit = [op - ie - te for op, ie, te in zip(operating_profit, interest_expenses, tax_expenses)]
+    rows.append(['Net Profit'] + [f'£{val:,.0f}' for val in net_profit])
     
     # Create DataFrame
-    df = pd.DataFrame(pl_data)
-    
-    # Format amounts
-    df['Amount'] = df['Amount'].apply(lambda x: f"£{x:,.2f}")
+    df = pd.DataFrame(rows, columns=columns)
     
     # Save to Excel with formatting
     filename = f"financial_forecast_{datetime.now().strftime('%Y%m%d')}.xlsx"
@@ -221,18 +290,24 @@ def process_financial_forecast(results):
         workbook = writer.book
         worksheet = writer.sheets['P&L']
         
-        worksheet.column_dimensions['A'].width = 30
-        worksheet.column_dimensions['B'].width = 20
+        # Format columns
+        worksheet.column_dimensions['A'].width = 25
+        for col in ['B', 'C', 'D', 'E', 'F']:
+            worksheet.column_dimensions[col].width = 15
         
-        # Add title
-        worksheet.cell(row=1, column=1, value='Profit & Loss Statement')
-        worksheet.cell(row=2, column=1, value='Category')
-        worksheet.cell(row=2, column=2, value='Amount')
+        # Create bold font style
+        bold_font = Font(bold=True)
         
-        # Adjust all data down one row due to title
-        for row in range(worksheet.max_row, 2, -1):
-            for col in range(1, 3):
-                worksheet.cell(row=row+1, column=col, value=worksheet.cell(row=row, column=col).value)
+        # Add formatting
+        for row_idx, row in enumerate(worksheet.iter_rows(min_row=1, max_row=worksheet.max_row), 1):
+            if not any(cell.value for cell in row[1:]):  # Section headers
+                for cell in row:
+                    cell.font = bold_font
+            elif row[0].value in ['Total Revenue', 'Total COGS', 'Gross Profit', 
+                                'Total Operating Expenses', 'Operating Profit (EBIT)', 
+                                'Net Profit']:
+                for cell in row:
+                    cell.font = bold_font
     
     return filename
 
